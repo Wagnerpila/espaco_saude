@@ -38,3 +38,6 @@ server/uploads/
 # certificados Let's Encrypt e demais dados persistentes de produção (bind
 # mounts do docker-compose.prod.yml) — nunca versionar
 /data/
+
+# pacote gerado a cada deploy (ver fluxo tar+scp em DEPLOY.md) — não versionar
+espaco-saude.tar.gz
