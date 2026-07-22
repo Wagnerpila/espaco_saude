@@ -1,0 +1,142 @@
+{
+  "name": "ServicePackage",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string",
+      "description": "ID do paciente"
+    },
+    "professional_id": {
+      "type": "string",
+      "description": "ID do profissional respons\u00e1vel"
+    },
+    "package_type": {
+      "type": "string",
+      "enum": [
+        "recurring",
+        "fixed",
+        "personalized",
+        "single"
+      ],
+      "description": "Tipo do pacote: recorrente, fixo, personalizado ou avulso"
+    },
+    "plan_name": {
+      "type": "string",
+      "description": "Nome do plano (ex: Pilates 2x semana)"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de in\u00edcio do servi\u00e7o"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de encerramento (se aplic\u00e1vel)"
+    },
+    "schedule_type": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "flexible"
+      ],
+      "description": "Dias fixos ou flex\u00edveis"
+    },
+    "fixed_days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Dias da semana fixos (segunda, ter\u00e7a, etc)"
+    },
+    "sessions_per_cycle": {
+      "type": "number",
+      "description": "Quantidade de sess\u00f5es por ciclo (mensal, semanal, etc)"
+    },
+    "cycle_type": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "weekly",
+        "custom"
+      ],
+      "default": "monthly",
+      "description": "Tipo de ciclo"
+    },
+    "limit_sessions": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se limita quantidade de reposi\u00e7\u00f5es"
+    },
+    "max_sessions": {
+      "type": "number",
+      "description": "N\u00famero m\u00e1ximo de sess\u00f5es permitidas"
+    },
+    "allow_absence_justification": {
+      "type": "boolean",
+      "default": false,
+      "description": "Permitir cliente justificar aus\u00eancia"
+    },
+    "plan_value": {
+      "type": "number",
+      "description": "Valor do plano"
+    },
+    "discount_percentage": {
+      "type": "number",
+      "default": 0,
+      "description": "Percentual de desconto"
+    },
+    "discount_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Valor do desconto em reais"
+    },
+    "final_value": {
+      "type": "number",
+      "description": "Valor final ap\u00f3s desconto"
+    },
+    "is_free": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o servi\u00e7o \u00e9 gratuito"
+    },
+    "freeze_value": {
+      "type": "boolean",
+      "default": false,
+      "description": "Congelar valor at\u00e9 o final do plano"
+    },
+    "auto_billing": {
+      "type": "boolean",
+      "default": false,
+      "description": "Cobran\u00e7a autom\u00e1tica ativada"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "paused",
+        "cancelled",
+        "completed"
+      ],
+      "default": "active",
+      "description": "Status do pacote"
+    },
+    "sessions_used": {
+      "type": "number",
+      "default": 0,
+      "description": "Sess\u00f5es j\u00e1 utilizadas"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre o pacote"
+    }
+  },
+  "required": [
+    "patient_id",
+    "professional_id",
+    "package_type",
+    "plan_name",
+    "start_date",
+    "plan_value"
+  ]
+}

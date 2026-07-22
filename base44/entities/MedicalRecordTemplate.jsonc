@@ -1,0 +1,42 @@
+{
+  "name": "MedicalRecordTemplate",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do modelo (ex: Evolu\u00e7\u00e3o Pilates)"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "pilates",
+        "fisioterapia",
+        "estetica",
+        "psicologia",
+        "medico",
+        "outros"
+      ],
+      "description": "Categoria do modelo"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do modelo"
+    },
+    "checkbox_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lista de campos checkbox do prontu\u00e1rio (ex: alongamento, fortalecimento)"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o modelo est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "name": "Commission",
+  "type": "object",
+  "properties": {
+    "appointment_id": {
+      "type": "string",
+      "description": "ID do atendimento relacionado"
+    },
+    "professional_id": {
+      "type": "string",
+      "description": "ID do profissional"
+    },
+    "patient_id": {
+      "type": "string",
+      "description": "ID do paciente"
+    },
+    "service_name": {
+      "type": "string",
+      "description": "Nome do servi\u00e7o realizado"
+    },
+    "service_value": {
+      "type": "number",
+      "description": "Valor do servi\u00e7o"
+    },
+    "commission_percentage": {
+      "type": "number",
+      "description": "Percentual de comiss\u00e3o aplicado"
+    },
+    "commission_value": {
+      "type": "number",
+      "description": "Valor da comiss\u00e3o calculado"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "paid"
+      ],
+      "default": "pending",
+      "description": "Status do pagamento da comiss\u00e3o"
+    },
+    "payment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do pagamento da comiss\u00e3o"
+    },
+    "monthly_closing_id": {
+      "type": "string",
+      "description": "ID do fechamento mensal"
+    },
+    "service_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do atendimento"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a comiss\u00e3o"
+    }
+  },
+  "required": [
+    "appointment_id",
+    "professional_id",
+    "service_value",
+    "commission_percentage",
+    "commission_value",
+    "service_date"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.professional_id": "{{user.id}}"
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

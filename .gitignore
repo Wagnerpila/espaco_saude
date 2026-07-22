@@ -1,0 +1,40 @@
+#env
+.env
+.env.*
+!.env.example
+
+# Logs
+/logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.env
+base44/.app.jsonc
+
+# dados reais de pacientes exportados do base44 durante a migração — nunca versionar
+server/migration-data/
+server/uploads/
+
+# certificados Let's Encrypt e demais dados persistentes de produção (bind
+# mounts do docker-compose.prod.yml) — nunca versionar
+/data/

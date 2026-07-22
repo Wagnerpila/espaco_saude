@@ -1,0 +1,446 @@
+// Schema Prisma — migrado de base44/entities/*.jsonc
+// Decisão de arquitetura: todos os IDs são TEXT (cuid por padrão), o que permite
+// que o script de migração (scripts/import-postgres.js) insira os IDs originais
+// do base44 sem precisar remapear foreign keys.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Autenticação (não existia como entidade no base44 — login era
+// hospedado externamente). UserPermission continua sendo a fonte
+// de verdade do RBAC fino; este model só guarda credenciais.
+// ─────────────────────────────────────────────────────────────
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  fullName     String   @map("full_name")
+  role         String   @default("user") // 'admin' | 'user' (grosseiro, espelha base44 User.role)
+  avatarUrl    String?  @map("avatar_url")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Patient {
+  id               String    @id @default(cuid())
+  fullName         String    @map("full_name")
+  cpf              String?
+  phone            String
+  address          String?
+  birthDate        DateTime? @map("birth_date") @db.Date
+  email            String?
+  medicalNotes     String?   @map("medical_notes")
+  emergencyContact String?   @map("emergency_contact")
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  appointments          Appointment[]
+  commissions           Commission[]
+  financialRecords      FinancialRecord[]
+  medicalRecords        MedicalRecord[]
+  servicePackages       ServicePackage[]
+  notifications         Notification[]
+  whatsappConversations WhatsAppConversation[]
+
+  @@map("patients")
+}
+
+model Professional {
+  id                          String   @id @default(cuid())
+  fullName                    String   @map("full_name")
+  specialty                   String
+  crefito                     String?
+  phone                       String?
+  email                       String?
+  legacyUserId                String?  @map("legacy_user_id") // id do usuário base44 original, apenas arquivo histórico
+  defaultCommissionPercentage Float    @default(0) @map("default_commission_percentage")
+  workingHours                Json?    @map("working_hours") // { monday: { start, end, active }, ... }
+  active                      Boolean  @default(true)
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
+
+  appointments     Appointment[]
+  commissions      Commission[]
+  monthlyClosings  MonthlyClosing[]
+  financialRecords FinancialRecord[]
+  medicalRecords   MedicalRecord[]
+  scheduleBlocks   ScheduleBlock[]
+  servicePackages  ServicePackage[]
+  requests         ProfessionalRequest[]
+
+  @@map("professionals")
+}
+
+model Appointment {
+  id               String   @id @default(cuid())
+  patientId        String   @map("patient_id")
+  professionalId   String   @map("professional_id")
+  roomId           String?  @map("room_id")
+  packageId        String?  @map("package_id")
+  appointmentDate  DateTime @map("appointment_date") @db.Date
+  appointmentTime  String   @map("appointment_time") // "HH:MM"
+  duration         Int      @default(60)
+  status           String   @default("pending") // pending/confirmed/cancelled/completed/no_show/justified_absence/professional_absence/null_absence
+  serviceType      String?  @map("service_type")
+  notes            String?
+  value             Float?
+  paymentStatus    String   @default("pending") @map("payment_status") // pending/paid/cancelled
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  patient       Patient        @relation(fields: [patientId], references: [id])
+  professional  Professional   @relation(fields: [professionalId], references: [id])
+  room          Room?          @relation(fields: [roomId], references: [id])
+  package       ServicePackage? @relation(fields: [packageId], references: [id])
+
+  commissions      Commission[]
+  financialRecords FinancialRecord[]
+  medicalRecords   MedicalRecord[]
+  notifications    Notification[]
+
+  @@index([appointmentDate])
+  @@index([professionalId, appointmentDate])
+  @@map("appointments")
+}
+
+model Commission {
+  id                   String    @id @default(cuid())
+  appointmentId        String    @map("appointment_id")
+  professionalId       String    @map("professional_id")
+  patientId            String?   @map("patient_id")
+  serviceName          String?   @map("service_name")
+  serviceValue         Float     @map("service_value")
+  commissionPercentage Float     @map("commission_percentage")
+  commissionValue      Float     @map("commission_value")
+  paymentStatus        String    @default("pending") @map("payment_status") // pending/paid
+  paymentDate          DateTime? @map("payment_date") @db.Date
+  monthlyClosingId     String?   @map("monthly_closing_id")
+  serviceDate          DateTime  @map("service_date") @db.Date
+  notes                String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  appointment    Appointment    @relation(fields: [appointmentId], references: [id])
+  professional   Professional   @relation(fields: [professionalId], references: [id])
+  patient        Patient?       @relation(fields: [patientId], references: [id])
+  monthlyClosing MonthlyClosing? @relation(fields: [monthlyClosingId], references: [id])
+
+  @@map("commissions")
+}
+
+model MonthlyClosing {
+  id               String    @id @default(cuid())
+  month            Int
+  year             Int
+  professionalId   String?   @map("professional_id") // null = fechamento global
+  totalAppointments Int      @default(0) @map("total_appointments")
+  totalRevenue     Float     @default(0) @map("total_revenue")
+  totalCommission  Float     @default(0) @map("total_commission")
+  status           String    @default("open") // open/closed
+  closingDate      DateTime? @map("closing_date") @db.Date
+  commissionIds    String[]  @map("commission_ids")
+  notes            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  professional Professional? @relation(fields: [professionalId], references: [id])
+  commissions  Commission[]
+
+  @@map("monthly_closings")
+}
+
+model FinancialRecord {
+  id              String   @id @default(cuid())
+  type            String   // income/expense
+  appointmentId   String?  @map("appointment_id")
+  patientId       String?  @map("patient_id")
+  professionalId  String?  @map("professional_id")
+  description     String
+  amount          Float
+  paymentMethod   String?  @map("payment_method") // cash/card/pix/bank_transfer/pending
+  paymentStatus   String   @default("pending") @map("payment_status") // pending/paid/cancelled
+  transactionDate DateTime @map("transaction_date") @db.Date
+  category        String?
+  receiptUrl      String?  @map("receipt_url")
+  notes           String?
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  appointment  Appointment?  @relation(fields: [appointmentId], references: [id])
+  patient      Patient?      @relation(fields: [patientId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+
+  @@map("financial_records")
+}
+
+model MedicalRecord {
+  id               String   @id @default(cuid())
+  patientId        String   @map("patient_id")
+  professionalId   String   @map("professional_id")
+  appointmentId    String?  @map("appointment_id")
+  sessionDate      DateTime @map("session_date") @db.Date
+  diagnosis        String?
+  treatment        String?
+  observations     String?
+  nextSessionNotes String?  @map("next_session_notes")
+  attachments      Json?    // [{ file_url, file_name, file_type }]
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("medical_records")
+}
+
+model MedicalRecordTemplate {
+  id             String   @id @default(cuid())
+  name           String
+  category       String   // pilates/fisioterapia/estetica/psicologia/medico/outros
+  description    String?
+  checkboxFields String[] @map("checkbox_fields")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("medical_record_templates")
+}
+
+model Equipment {
+  id           String   @id @default(cuid())
+  name         String
+  abbreviation String?
+  category     String   // pilates/fisioterapia/estetica/outros
+  description  String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  exerciseItems ExerciseItem[]
+
+  @@map("equipment")
+}
+
+model ExerciseItem {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  equipmentId String?  @map("equipment_id")
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  equipment Equipment? @relation(fields: [equipmentId], references: [id])
+
+  @@map("exercise_items")
+}
+
+model Room {
+  id        String   @id @default(cuid())
+  roomName  String   @map("room_name")
+  roomType  String   @map("room_type") // pilates/fisioterapia/estetica/consultorio/multifuncional
+  capacity  Int      @default(1)
+  equipment String[]
+  active    Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  appointments Appointment[]
+
+  @@map("rooms")
+}
+
+model ScheduleBlock {
+  id               String    @id @default(cuid())
+  professionalId   String    @map("professional_id")
+  blockType        String    @map("block_type") // full_day/partial_day/recurring_exception
+  startDate        DateTime  @map("start_date") @db.Date
+  endDate          DateTime? @map("end_date") @db.Date
+  startTime        String?   @map("start_time")
+  endTime          String?   @map("end_time")
+  recurringPattern String    @default("none") @map("recurring_pattern") // none/weekly/monthly/custom
+  recurringDays    Int[]     @map("recurring_days")
+  customDates      DateTime[] @map("custom_dates") @db.Date
+  reason           String?
+  active           Boolean   @default(true)
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@map("schedule_blocks")
+}
+
+model ServicePlan {
+  id                    String   @id @default(cuid())
+  planName              String   @map("plan_name")
+  serviceType           String   @map("service_type") // pilates/fisioterapia/estetica/outros
+  description           String?
+  defaultValue          Float    @map("default_value")
+  sessionsPerCycle      Int?     @map("sessions_per_cycle")
+  durationMinutes       Int      @default(60) @map("duration_minutes")
+  availableRooms        String[] @map("available_rooms")
+  availableProfessionals String[] @map("available_professionals")
+  allowDiscount         Boolean  @default(true) @map("allow_discount")
+  maxDiscountPercentage Float    @default(20) @map("max_discount_percentage")
+  commissionPercentage  Float?   @map("commission_percentage")
+  active                Boolean  @default(true)
+  notes                 String?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("service_plans")
+}
+
+model ServicePackage {
+  id                          String    @id @default(cuid())
+  patientId                   String    @map("patient_id")
+  professionalId               String    @map("professional_id")
+  packageType                  String    @map("package_type") // recurring/fixed/personalized/single
+  planName                     String    @map("plan_name")
+  startDate                    DateTime  @map("start_date") @db.Date
+  endDate                      DateTime? @map("end_date") @db.Date
+  scheduleType                 String?   @map("schedule_type") // fixed/flexible
+  fixedDays                    String[]  @map("fixed_days")
+  sessionsPerCycle             Int?      @map("sessions_per_cycle")
+  cycleType                    String    @default("monthly") @map("cycle_type") // monthly/weekly/custom
+  limitSessions                Boolean   @default(false) @map("limit_sessions")
+  maxSessions                  Int?      @map("max_sessions")
+  allowAbsenceJustification    Boolean   @default(false) @map("allow_absence_justification")
+  planValue                    Float     @map("plan_value")
+  discountPercentage           Float     @default(0) @map("discount_percentage")
+  discountAmount                Float     @default(0) @map("discount_amount")
+  finalValue                   Float?    @map("final_value")
+  isFree                       Boolean   @default(false) @map("is_free")
+  freezeValue                  Boolean   @default(false) @map("freeze_value")
+  autoBilling                  Boolean   @default(false) @map("auto_billing")
+  status                       String    @default("active") // active/paused/cancelled/completed
+  sessionsUsed                 Int       @default(0) @map("sessions_used")
+  notes                        String?
+  createdAt                    DateTime  @default(now()) @map("created_at")
+  updatedAt                    DateTime  @updatedAt @map("updated_at")
+
+  patient      Patient      @relation(fields: [patientId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+  appointments Appointment[]
+
+  @@map("service_packages")
+}
+
+model Notification {
+  id                String   @id @default(cuid())
+  type              String   // payment_pending/payment_confirmed/appointment_confirmed/appointment_cancelled/new_appointment/system_alert
+  title             String
+  message           String
+  patientId         String?  @map("patient_id")
+  appointmentId     String?  @map("appointment_id")
+  financialRecordId String?  @map("financial_record_id")
+  status            String   @default("unread") // unread/read/dismissed
+  priority          String   @default("medium") // low/medium/high/urgent
+  data              Json?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  patient     Patient?     @relation(fields: [patientId], references: [id])
+  appointment Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@map("notifications")
+}
+
+model ProfessionalRequest {
+  id                 String    @id @default(cuid())
+  professionalId     String    @map("professional_id")
+  professionalName   String    @map("professional_name")
+  professionalEmail  String    @map("professional_email")
+  specialty          String?
+  status             String    @default("pending") // pending/approved/rejected
+  reviewedBy         String?   @map("reviewed_by")
+  reviewedAt         DateTime? @map("reviewed_at")
+  rejectionReason    String?   @map("rejection_reason")
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@map("professional_requests")
+}
+
+model InviteLink {
+  id        String    @id @default(cuid())
+  email     String
+  token     String    @unique
+  role      String    // patient/professional
+  expiresAt DateTime  @map("expires_at")
+  used      Boolean   @default(false)
+  usedAt    DateTime? @map("used_at")
+  createdBy String?   @map("created_by")
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("invite_links")
+}
+
+model UserPermission {
+  id          String   @id @default(cuid())
+  userEmail   String   @map("user_email")
+  userName    String   @map("user_name")
+  userRole    String   @map("user_role") // admin/professional/patient
+  permissions Json     // { dashboard, schedule, patients, financial, medical_records, professionals, admin_panel, user_management, chat_assistant, my_patients, professional_financial }
+  isAdmin     Boolean  @default(false) @map("is_admin")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([userEmail])
+  @@map("user_permissions")
+}
+
+model WhatsAppConversation {
+  id         String   @id @default(cuid())
+  phone      String
+  sessionId  String?  @map("session_id")
+  messages   Json     @default("[]") // [{ role, content, timestamp, outbound?, status? }]
+  state      Json?    // { step, ... } máquina de estados
+  draft      Json?    // dados de agendamento em progresso
+  lastActive DateTime? @map("last_active")
+  patientId  String?  @map("patient_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  patient Patient? @relation(fields: [patientId], references: [id])
+
+  @@index([phone])
+  @@map("whatsapp_conversations")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Chat interno (substitui o agentSDK nativo do base44 / AgentChat.jsx)
+// ─────────────────────────────────────────────────────────────
+model AgentConversation {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  userEmail String?  @map("user_email")
+  name      String?
+  metadata  Json?
+  messages  Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("agent_conversations")
+}

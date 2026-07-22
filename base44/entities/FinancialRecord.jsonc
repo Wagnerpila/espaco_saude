@@ -1,0 +1,78 @@
+{
+  "name": "FinancialRecord",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "income",
+        "expense"
+      ],
+      "description": "Tipo: receita ou despesa"
+    },
+    "appointment_id": {
+      "type": "string",
+      "description": "ID do agendamento (apenas para receitas)"
+    },
+    "patient_id": {
+      "type": "string",
+      "description": "ID do paciente (apenas para receitas)"
+    },
+    "professional_id": {
+      "type": "string",
+      "description": "ID do profissional (apenas para receitas)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o da transa\u00e7\u00e3o"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Valor da transa\u00e7\u00e3o"
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "card",
+        "pix",
+        "bank_transfer",
+        "pending"
+      ],
+      "description": "M\u00e9todo de pagamento"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "paid",
+        "cancelled"
+      ],
+      "default": "pending",
+      "description": "Status do pagamento"
+    },
+    "transaction_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data da transa\u00e7\u00e3o"
+    },
+    "category": {
+      "type": "string",
+      "description": "Categoria da despesa (para despesas)"
+    },
+    "receipt_url": {
+      "type": "string",
+      "description": "URL do comprovante/nota fiscal"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre o pagamento"
+    }
+  },
+  "required": [
+    "type",
+    "description",
+    "amount",
+    "transaction_date"
+  ]
+}

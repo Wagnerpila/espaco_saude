@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: espaco_saude
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: espaco_saude
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U espaco_saude"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./server
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    environment:
+      DATABASE_URL: postgresql://espaco_saude:${POSTGRES_PASSWORD:-changeme}@postgres:5432/espaco_saude?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend_uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  backend_uploads:

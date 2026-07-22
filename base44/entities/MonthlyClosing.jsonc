@@ -1,0 +1,62 @@
+{
+  "name": "MonthlyClosing",
+  "type": "object",
+  "properties": {
+    "month": {
+      "type": "number",
+      "description": "M\u00eas do fechamento (1-12)"
+    },
+    "year": {
+      "type": "number",
+      "description": "Ano do fechamento"
+    },
+    "professional_id": {
+      "type": "string",
+      "description": "ID do profissional (opcional para fechamento geral)"
+    },
+    "total_appointments": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de atendimentos"
+    },
+    "total_revenue": {
+      "type": "number",
+      "default": 0,
+      "description": "Faturamento total"
+    },
+    "total_commission": {
+      "type": "number",
+      "default": 0,
+      "description": "Total de comiss\u00f5es"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "closed"
+      ],
+      "default": "open",
+      "description": "Status do fechamento"
+    },
+    "closing_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data do fechamento"
+    },
+    "commission_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs das comiss\u00f5es vinculadas"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es do fechamento"
+    }
+  },
+  "required": [
+    "month",
+    "year"
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "name": "WhatsAppConversation",
+  "type": "object",
+  "properties": {
+    "phone": {
+      "type": "string",
+      "description": "N\u00famero de telefone do cliente (com c\u00f3digo do pa\u00eds)"
+    },
+    "session_id": {
+      "type": "string",
+      "description": "ID da sess\u00e3o do n8n ou identificador \u00fanico da conversa"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Hist\u00f3rico de mensagens da conversa",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "state": {
+      "type": "object",
+      "description": "Estado atual da m\u00e1quina de estados da conversa (step, slots, aptIds, etc)"
+    },
+    "draft": {
+      "type": "object",
+      "description": "Dados em constru\u00e7\u00e3o do agendamento atual (professional_id, date, time, patient_name, etc)"
+    },
+    "last_active": {
+      "type": "string",
+      "format": "date-time",
+      "description": "\u00daltima atividade da conversa"
+    },
+    "patient_id": {
+      "type": "string",
+      "description": "ID do paciente identificado na conversa (se encontrado)"
+    }
+  },
+  "required": [
+    "phone"
+  ],
+  "rls": {
+    "create": {},
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

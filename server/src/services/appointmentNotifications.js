@@ -1,0 +1,108 @@
+import { prisma } from '../db.js';
+import { sendWhatsAppMessage } from './whatsapp.js';
+import { formatDateBR } from '../utils/format.js';
+
+// Confirmação de agendamento por WhatsApp — disparada tanto quando o próprio
+// paciente confirma pelo bot de chat (ver services/whatsappBot.js, que já
+// manda a confirmação na própria conversa) quanto quando um admin confirma
+// manualmente pelo painel (ver hook em routes/entities.routes.js, que chama
+// esta função quando o status de um Appointment muda para 'confirmed').
+export async function sendAppointmentConfirmationWhatsApp(appointment) {
+  if (!appointment || appointment.status !== 'confirmed') {
+    return { skipped: true, reason: 'Agendamento não está confirmado' };
+  }
+
+  const [patient, professional] = await Promise.all([
+    prisma.patient.findUnique({ where: { id: appointment.patientId } }),
+    appointment.professionalId ? prisma.professional.findUnique({ where: { id: appointment.professionalId } }) : null,
+  ]);
+
+  if (!patient?.phone) return { skipped: true, reason: 'Paciente sem telefone' };
+
+  const message = [
+    `✅ *Agendamento Confirmado!*`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+    `🏥 *Clínica Espaço Saúde*`,
+    ``,
+    `Olá, ${patient.fullName}! 👋`,
+    `Sua consulta foi confirmada:`,
+    ``,
+    `📅 *Data:* ${formatDateBR(appointment.appointmentDate)}`,
+    `⏰ *Horário:* ${appointment.appointmentTime}`,
+    professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}` : '',
+    appointment.serviceType ? `🏷️ *Serviço:* ${appointment.serviceType}` : '',
+    ``,
+    `Te esperamos! 💙`,
+    `━━━━━━━━━━━━━━━━━━━━`,
+  ].filter((s) => s !== '').join('\n');
+
+  await sendWhatsAppMessage(patient.phone, message);
+
+  return { success: true, patient_name: patient.fullName };
+}
+
+// Lembretes de 1h antes da consulta. Roda a cada 15min (ver src/cron.js) e
+// usa a tabela Notification como registro de dedupe (type
+// 'appointment_reminder_1h') pra não mandar duas vezes a mesma consulta
+// dentro da janela de tolerância.
+export async function sendOneHourAppointmentReminders() {
+  const now = new Date();
+  const windowStart = new Date(now.getTime() + 50 * 60 * 1000);
+  const windowEnd = new Date(now.getTime() + 70 * 60 * 1000);
+  const todayIso = now.toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+
+  const [appointments, patients, professionals] = await Promise.all([
+    prisma.appointment.findMany({ where: { appointmentDate: new Date(todayIso), status: { in: ['pending', 'confirmed'] } } }),
+    prisma.patient.findMany(),
+    prisma.professional.findMany(),
+  ]);
+
+  const dueApts = appointments.filter((apt) => {
+    if (!/^\d{2}:\d{2}$/.test(String(apt.appointmentTime))) return false;
+    const aptDateTime = new Date(`${todayIso}T${apt.appointmentTime}:00-03:00`);
+    return aptDateTime >= windowStart && aptDateTime <= windowEnd;
+  });
+
+  const sent = [];
+  const errors = [];
+
+  for (const apt of dueApts) {
+    const already = await prisma.notification.findFirst({
+      where: { appointmentId: apt.id, type: 'appointment_reminder_1h' },
+    });
+    if (already) continue;
+
+    const patient = patients.find((p) => p.id === apt.patientId);
+    if (!patient?.phone) continue;
+    const professional = professionals.find((p) => p.id === apt.professionalId);
+
+    const message = [
+      `⏰ *Sua consulta é daqui a 1 hora!*`,
+      ``,
+      `Olá, ${patient.fullName}! 👋`,
+      `Horário: *${apt.appointmentTime}*`,
+      professional ? `Profissional: *${professional.fullName}*` : '',
+      ``,
+      `Te esperamos na Clínica Espaço Saúde 💙`,
+    ].filter(Boolean).join('\n');
+
+    try {
+      await sendWhatsAppMessage(patient.phone, message);
+      await prisma.notification.create({
+        data: {
+          type: 'appointment_reminder_1h',
+          title: 'Lembrete de 1h enviado',
+          message: `Lembrete de 1h antes enviado para ${patient.fullName} (consulta às ${apt.appointmentTime})`,
+          patientId: apt.patientId,
+          appointmentId: apt.id,
+          priority: 'low',
+        },
+      });
+      sent.push({ patient: patient.fullName, time: apt.appointmentTime });
+    } catch (err) {
+      errors.push({ patient: patient.fullName, error: err.message });
+    }
+  }
+
+  return { sent: sent.length, errors: errors.length, details: { sent, errors } };
+}

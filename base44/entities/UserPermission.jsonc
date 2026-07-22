@@ -1,0 +1,100 @@
+{
+  "name": "UserPermission",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email do usu\u00e1rio"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Nome do usu\u00e1rio"
+    },
+    "user_role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "professional",
+        "patient"
+      ],
+      "description": "Tipo de usu\u00e1rio"
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "dashboard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso ao Dashboard"
+        },
+        "schedule": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso \u00e0 Agenda"
+        },
+        "patients": {
+          "type": "boolean",
+          "default": false,
+          "description": "Acesso ao gerenciamento de Pacientes"
+        },
+        "financial": {
+          "type": "boolean",
+          "default": false,
+          "description": "Acesso ao Financeiro"
+        },
+        "medical_records": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso aos Prontu\u00e1rios"
+        },
+        "professionals": {
+          "type": "boolean",
+          "default": false,
+          "description": "Acesso ao gerenciamento de Profissionais"
+        },
+        "admin_panel": {
+          "type": "boolean",
+          "default": false,
+          "description": "Acesso ao Painel Administrativo"
+        },
+        "user_management": {
+          "type": "boolean",
+          "default": false,
+          "description": "Acesso ao Gerenciamento de Usu\u00e1rios"
+        },
+        "chat_assistant": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso ao Assistente IA"
+        },
+        "my_patients": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso aos Meus Pacientes (profissionais)"
+        },
+        "professional_financial": {
+          "type": "boolean",
+          "default": true,
+          "description": "Acesso ao Financeiro do Profissional"
+        }
+      },
+      "description": "Permiss\u00f5es espec\u00edficas do usu\u00e1rio"
+    },
+    "is_admin": {
+      "type": "boolean",
+      "default": false,
+      "description": "Se o usu\u00e1rio tem privil\u00e9gios de administrador"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se as permiss\u00f5es est\u00e3o ativas"
+    }
+  },
+  "required": [
+    "user_email",
+    "user_name",
+    "user_role"
+  ]
+}

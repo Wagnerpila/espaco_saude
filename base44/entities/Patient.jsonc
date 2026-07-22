@@ -1,0 +1,99 @@
+{
+  "name": "Patient",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "description": "Nome completo do paciente"
+    },
+    "cpf": {
+      "type": "string",
+      "description": "CPF do paciente"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Telefone/WhatsApp do paciente"
+    },
+    "address": {
+      "type": "string",
+      "description": "Endere\u00e7o completo do paciente"
+    },
+    "birth_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Data de nascimento"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "E-mail do paciente"
+    },
+    "medical_notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es m\u00e9dicas importantes"
+    },
+    "emergency_contact": {
+      "type": "string",
+      "description": "Contato de emerg\u00eancia"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se o paciente est\u00e1 ativo"
+    }
+  },
+  "required": [
+    "full_name",
+    "phone"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "professional"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "professional"
+          }
+        },
+        {
+          "data.email": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.email": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

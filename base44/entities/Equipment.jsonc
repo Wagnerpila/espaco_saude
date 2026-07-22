@@ -1,0 +1,36 @@
+{
+  "name": "Equipment",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nome do aparelho (ex: Reformer, Barrel)"
+    },
+    "abbreviation": {
+      "type": "string",
+      "description": "Abrevia\u00e7\u00e3o (ex: RE, BA)"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "pilates",
+        "fisioterapia",
+        "estetica",
+        "outros"
+      ],
+      "description": "Categoria do aparelho"
+    },
+    "description": {
+      "type": "string",
+      "description": "Descri\u00e7\u00e3o do aparelho"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "category"
+  ]
+}

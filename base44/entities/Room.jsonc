@@ -1,0 +1,46 @@
+{
+  "name": "Room",
+  "type": "object",
+  "properties": {
+    "room_name": {
+      "type": "string",
+      "description": "Nome da sala"
+    },
+    "room_type": {
+      "type": "string",
+      "enum": [
+        "pilates",
+        "fisioterapia",
+        "estetica",
+        "consultorio",
+        "multifuncional"
+      ],
+      "description": "Tipo da sala"
+    },
+    "capacity": {
+      "type": "number",
+      "default": 1,
+      "description": "Capacidade de atendimento simult\u00e2neo"
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Equipamentos dispon\u00edveis"
+    },
+    "active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Se a sala est\u00e1 ativa"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Observa\u00e7\u00f5es sobre a sala"
+    }
+  },
+  "required": [
+    "room_name",
+    "room_type"
+  ]
+}
