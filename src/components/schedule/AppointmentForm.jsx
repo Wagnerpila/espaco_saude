@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle } from "lucide-react";
+import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Room, Appointment, ScheduleBlock, ServicePackage, Patient } from "@/entities/all";
 import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
@@ -26,6 +26,8 @@ export default function AppointmentForm({
   const [patientPackages, setPatientPackages] = useState([]);
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [cycleAlert, setCycleAlert] = useState(null); // { package, patient }
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [patientSearch, setPatientSearch] = useState("");
 
   const [formData, setFormData] = useState(() => {
     if (appointment) {
@@ -129,16 +131,20 @@ export default function AppointmentForm({
     const [hours, minutes] = formData.appointment_time.split(':').map(Number);
     const startMin = hours * 60 + minutes;
     const endMin = startMin + (formData.duration || 60);
-    const occupiedIds = confirmed
-      .filter(apt => {
-        if (appointment && apt.id === appointment.id) return false;
-        if (!apt.room_id) return false;
-        const [h, m] = apt.appointment_time.split(':').map(Number);
-        const s = h * 60 + m, e = s + (apt.duration || 60);
-        return (startMin >= s && startMin < e) || (endMin > s && endMin <= e) || (startMin <= s && endMin >= e);
-      })
-      .map(apt => apt.room_id);
-    setAvailableRooms(rooms.filter(r => ![...new Set(occupiedIds)].includes(r.id)));
+    const overlapping = confirmed.filter(apt => {
+      if (appointment && apt.id === appointment.id) return false;
+      if (!apt.room_id) return false;
+      const [h, m] = apt.appointment_time.split(':').map(Number);
+      const s = h * 60 + m, e = s + (apt.duration || 60);
+      return (startMin >= s && startMin < e) || (endMin > s && endMin <= e) || (startMin <= s && endMin >= e);
+    });
+    // Uma sala só fica indisponível quando o número de agendamentos sobrepostos
+    // já atinge a capacidade dela — antes qualquer sobreposição bloqueava a
+    // sala inteira, mesmo que ela comportasse vários atendimentos ao mesmo tempo.
+    setAvailableRooms(rooms.filter(r => {
+      const occupancy = overlapping.filter(apt => apt.room_id === r.id).length;
+      return occupancy < (r.capacity || 1);
+    }));
     setIsCheckingRooms(false);
   };
 
@@ -148,29 +154,41 @@ export default function AppointmentForm({
       alert(`❌ Não é possível agendar nesta data.\nMotivo: ${holidayBlock.reason}`);
       return;
     }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-    await onSubmit(formData);
+    try {
+      const saved = await onSubmit(formData);
 
-    // Contabilizar sessão no plano se status = completed
-    if (formData.status === 'completed' && formData.package_id && selectedPackage) {
-      const newSessionsUsed = (selectedPackage.sessions_used || 0) + 1;
-      const maxSessions = selectedPackage.sessions_per_cycle || selectedPackage.max_sessions || 0;
-      await ServicePackage.update(selectedPackage.id, { sessions_used: newSessionsUsed });
+      // Contabilizar sessão no plano se status = completed. O incremento em si
+      // já acontece no backend (ver server/src/services/packages.js, disparado
+      // pelo PUT do Appointment) — aqui só calculamos se o ciclo fechou, pra
+      // decidir se mostramos o aviso, sem gravar de novo (evita duplicar a
+      // contagem de sessões).
+      if (formData.status === 'completed' && formData.package_id && selectedPackage) {
+        const newSessionsUsed = (selectedPackage.sessions_used || 0) + 1;
+        const maxSessions = selectedPackage.sessions_per_cycle || selectedPackage.max_sessions || 0;
 
-      // Ciclo encerrado?
-      if (maxSessions > 0 && newSessionsUsed >= maxSessions) {
-        await ServicePackage.update(selectedPackage.id, { status: "completed" });
-        const patient = patients.find(p => p.id === formData.patient_id);
-        setCycleAlert({ package: { ...selectedPackage, sessions_used: newSessionsUsed }, patient });
+        if (maxSessions > 0 && newSessionsUsed >= maxSessions) {
+          const patient = patients.find(p => p.id === formData.patient_id);
+          setCycleAlert({ package: { ...selectedPackage, sessions_used: newSessionsUsed }, patient });
+        }
       }
-    }
 
-    // Criar transação financeira se concluído
-    if (formData.status === 'completed' && formData.value > 0) {
-      await createFinancialTransaction({
-        appointmentId: appointment?.id || formData.id,
-        paymentStatus: 'pending'
-      });
+      // Criar transação financeira se concluído
+      if (formData.status === 'completed' && formData.value > 0) {
+        await createFinancialTransaction({
+          appointmentId: appointment?.id || saved?.id || formData.id,
+          paymentStatus: 'pending'
+        });
+      }
+    } catch (error) {
+      // onSubmit (Schedule.jsx) já exibe um toast com o erro — aqui só
+      // paramos a execução do pós-processamento (plano/financeiro) sem
+      // duplicar a mensagem pro usuário.
+      console.error("Erro ao salvar agendamento:", error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -212,10 +230,26 @@ export default function AppointmentForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Paciente *</Label>
-                  <Select value={formData.patient_id} onValueChange={(v) => handleChange('patient_id', v)} required>
+                  <Select
+                    value={formData.patient_id}
+                    onValueChange={(v) => handleChange('patient_id', v)}
+                    onOpenChange={(open) => { if (!open) setPatientSearch(""); }}
+                    required
+                  >
                     <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
                     <SelectContent>
-                      {patients.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+                      <div className="relative px-2 py-1.5 sticky top-0 bg-white z-10" onKeyDown={(e) => e.stopPropagation()}>
+                        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          value={patientSearch}
+                          onChange={(e) => setPatientSearch(e.target.value)}
+                          placeholder="Buscar paciente..."
+                          className="pl-8 h-8"
+                        />
+                      </div>
+                      {patients
+                        .filter(p => p.full_name?.toLowerCase().includes(patientSearch.toLowerCase()))
+                        .map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -247,15 +281,14 @@ export default function AppointmentForm({
 
                 <div className="space-y-2">
                   <Label>Duração (minutos)</Label>
-                  <Select value={formData.duration?.toString() || "60"} onValueChange={(v) => handleChange('duration', parseInt(v))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="30">30 minutos</SelectItem>
-                      <SelectItem value="60">1 hora</SelectItem>
-                      <SelectItem value="90">1h 30min</SelectItem>
-                      <SelectItem value="120">2 horas</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={formData.duration ?? ''}
+                    onChange={(e) => handleChange('duration', parseInt(e.target.value) || 0)}
+                    placeholder="60"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -324,7 +357,7 @@ export default function AppointmentForm({
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={onCancel}><X className="w-4 h-4 mr-2" />Cancelar</Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700"><Save className="w-4 h-4 mr-2" />{appointment ? 'Atualizar' : 'Agendar'}</Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700"><Save className="w-4 h-4 mr-2" />{isSubmitting ? 'Salvando...' : (appointment ? 'Atualizar' : 'Agendar')}</Button>
               </div>
             </form>
           </CardContent>

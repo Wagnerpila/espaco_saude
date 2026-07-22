@@ -9,7 +9,7 @@ export const ENTITY_MAP = {
   Appointment: { model: 'appointment', dateFields: ['appointment_date'], jsonFields: [] },
   Commission: { model: 'commission', dateFields: ['payment_date', 'service_date'], jsonFields: [] },
   MonthlyClosing: { model: 'monthlyClosing', dateFields: ['closing_date'], jsonFields: [] },
-  FinancialRecord: { model: 'financialRecord', dateFields: ['transaction_date'], jsonFields: [] },
+  FinancialRecord: { model: 'financialRecord', dateFields: ['transaction_date', 'due_date'], jsonFields: [] },
   MedicalRecord: { model: 'medicalRecord', dateFields: ['session_date'], jsonFields: ['attachments'] },
   MedicalRecordTemplate: { model: 'medicalRecordTemplate', dateFields: [], jsonFields: [] },
   Equipment: { model: 'equipment', dateFields: [], jsonFields: [] },

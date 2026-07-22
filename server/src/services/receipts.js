@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { sendWhatsAppMessage } from './whatsapp.js';
 import { formatDateBR, formatCurrency } from '../utils/format.js';
+import { loadMessageRenderer } from './whatsappMessages.js';
 
 const METHOD_LABELS = {
   pix: 'PIX',
@@ -30,25 +31,16 @@ export async function sendPaymentReceiptWhatsApp(financialRecord) {
   const receiptNumber = `REC-${Date.now().toString().slice(-8)}`;
   const paymentLabel = METHOD_LABELS[financialRecord.paymentMethod] || financialRecord.paymentMethod || 'Não informado';
 
-  const message = [
-    `🧾 *Comprovante de Pagamento*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `🏥 *Clínica Espaço Saúde*`,
-    `Estética • Fisioterapia • Pilates`,
-    ``,
-    `Nº ${receiptNumber}`,
-    `📅 Data: ${formatDateBR(financialRecord.transactionDate)}`,
-    ``,
-    `👤 *Paciente:* ${patient.fullName}`,
-    professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}` : '',
-    `🏷️ *Serviço:* ${financialRecord.description || 'Consulta'}`,
-    `💳 *Pagamento:* ${paymentLabel}`,
-    ``,
-    `✅ *Valor pago: R$ ${formatCurrency(gross)}*`,
-    ``,
-    `Obrigado pela preferência! 💙`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-  ].filter((s) => s !== '').join('\n');
+  const t = await loadMessageRenderer();
+  const message = t('PAYMENT_RECEIPT', {
+    receipt_number: receiptNumber,
+    date: formatDateBR(financialRecord.transactionDate),
+    patient_name: patient.fullName,
+    professional_line: professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}\n` : '',
+    service: financialRecord.description || 'Consulta',
+    payment_method: paymentLabel,
+    amount: formatCurrency(gross),
+  });
 
   await sendWhatsAppMessage(patient.phone, message);
 

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2 } from "lucide-react";
 
 function formatDateBR(iso) {
   if (!iso) return '-';
@@ -34,7 +34,7 @@ const STATUS_COLORS = {
   cancelled: "bg-gray-100 text-gray-500",
 };
 
-export default function FinancialTransactionTable({ transactions, patients, professionals, isLoading, onEdit, onDelete }) {
+export default function FinancialTransactionTable({ transactions, patients, professionals, isLoading, onEdit, onDelete, onConfirmPayment }) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -158,6 +158,17 @@ export default function FinancialTransactionTable({ transactions, patients, prof
 
                   {/* Actions */}
                   <div className="flex gap-1 flex-shrink-0">
+                    {t.payment_status === 'pending' && onConfirmPayment && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        title="Confirmar pagamento"
+                        onClick={() => { if (confirm(`Confirmar pagamento de R$ ${t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}?`)) onConfirmPayment(t); }}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(t)}>
                       <Edit className="w-3.5 h-3.5 text-gray-400" />
                     </Button>

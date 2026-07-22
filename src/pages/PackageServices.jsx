@@ -93,9 +93,9 @@ export default function PackageServicesPage() {
       toast.success("Pacote criado com sucesso!");
       await loadData();
 
-      // Para recorrente com dias fixos, não fecha imediatamente (o form mostrará a confirmação)
+      // Para recorrente/fixo com dias fixos, não fecha imediatamente (o form mostrará a confirmação)
       // Para outros tipos, fecha normalmente
-      if (selectedType !== "recurring") {
+      if (selectedType !== "recurring" && selectedType !== "fixed") {
         setShowForm(false);
         setSelectedType(null);
         setSelectedPatient(null);
@@ -163,6 +163,7 @@ export default function PackageServicesPage() {
             patient={selectedPatient}
             professionals={professionals}
             servicePlans={servicePlans}
+            rooms={rooms}
             onSubmit={handleSubmitPackage}
             onCancel={() => {
               setShowForm(false);

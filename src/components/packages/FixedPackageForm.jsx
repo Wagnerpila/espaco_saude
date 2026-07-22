@@ -5,18 +5,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Save } from "lucide-react";
+import { X, Save, Calendar, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { generateMonthlyAppointments } from "@/functions/generateMonthlyAppointments";
 
-export default function FixedPackageForm({ 
-  patient, 
+const weekDays = [
+  { value: "monday", label: "Segunda" },
+  { value: "tuesday", label: "Terça" },
+  { value: "wednesday", label: "Quarta" },
+  { value: "thursday", label: "Quinta" },
+  { value: "friday", label: "Sexta" },
+  { value: "saturday", label: "Sábado" },
+  { value: "sunday", label: "Domingo" }
+];
+
+export default function FixedPackageForm({
+  patient,
   professionals,
   servicePlans = [],
-  onSubmit, 
-  onCancel 
+  rooms = [],
+  onSubmit,
+  onCancel
 }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [scheduleSessions, setScheduleSessions] = useState(false);
+  const [fixedDays, setFixedDays] = useState([]);
+  const [dayTimes, setDayTimes] = useState({});
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedCount, setGeneratedCount] = useState(null);
   const [formData, setFormData] = useState({
     package_type: "fixed",
     plan_name: "",
@@ -48,15 +68,15 @@ export default function FixedPackageForm({
 
   const handleValueChange = (field, value) => {
     const updates = { [field]: value };
-    
+
     if (field === 'plan_value' || field === 'discount_percentage' || field === 'discount_amount' || field === 'is_free') {
-      const planValue = field === 'plan_value' ? value : formData.plan_value;
-      const discPerc = field === 'discount_percentage' ? value : formData.discount_percentage;
-      const discAmount = field === 'discount_amount' ? value : formData.discount_amount;
+      const planValue = Number(field === 'plan_value' ? value : formData.plan_value) || 0;
+      const discPerc = Number(field === 'discount_percentage' ? value : formData.discount_percentage) || 0;
+      const discAmount = Number(field === 'discount_amount' ? value : formData.discount_amount) || 0;
       const isFree = field === 'is_free' ? value : formData.is_free;
-      
+
       updates.final_value = calculateFinalValue(planValue, discPerc, discAmount, isFree);
-      
+
       if (field === 'is_free' && value) {
         updates.plan_value = 0;
         updates.discount_percentage = 0;
@@ -64,7 +84,7 @@ export default function FixedPackageForm({
         updates.final_value = 0;
       }
     }
-    
+
     setFormData({ ...formData, ...updates });
   };
 
@@ -72,19 +92,14 @@ export default function FixedPackageForm({
     const plan = servicePlans.find(p => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
-      
-      // Calcular desconto máximo se houver
-      const maxDiscount = plan.allow_discount && plan.max_discount_percentage 
-        ? plan.max_discount_percentage 
-        : 0;
-      
+
       const finalValue = calculateFinalValue(
         plan.default_value || 0,
         0, // discount percentage
         0, // discount amount
         false // is_free
       );
-      
+
       setFormData({
         ...formData,
         plan_name: plan.plan_name,
@@ -99,7 +114,15 @@ export default function FixedPackageForm({
     }
   };
 
-  const handleSubmit = () => {
+  const handleDayToggle = (day) => {
+    setFixedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
+  const handleDayTimeChange = (day, time) => {
+    setDayTimes(prev => ({ ...prev, [day]: time }));
+  };
+
+  const handleSubmit = async () => {
     if (!formData.plan_name || !formData.professional_id) {
       alert("Preencha todos os campos obrigatórios");
       return;
@@ -108,24 +131,60 @@ export default function FixedPackageForm({
     // Envia só os campos que existem de fato no ServicePackage (Prisma) —
     // total_sessions/payment_type/installments são estado só de UI, não
     // colunas do banco; mandar eles direto causava erro 500 no backend.
-    onSubmit({
+    const packageData = {
       patient_id: patient.id,
       professional_id: formData.professional_id,
       package_type: formData.package_type,
       plan_name: formData.plan_name,
       start_date: formData.start_date,
       end_date: formData.end_date || undefined,
-      plan_value: formData.plan_value,
-      discount_percentage: formData.discount_percentage,
-      discount_amount: formData.discount_amount,
-      final_value: formData.final_value,
+      plan_value: Number(formData.plan_value) || 0,
+      discount_percentage: Number(formData.discount_percentage) || 0,
+      discount_amount: Number(formData.discount_amount) || 0,
+      final_value: Number(formData.final_value) || 0,
       is_free: formData.is_free,
       limit_sessions: true,
-      max_sessions: formData.total_sessions,
+      max_sessions: Number(formData.total_sessions) || 0,
       sessions_used: 0,
       status: "active",
       notes: formData.notes
-    });
+    };
+
+    // Sem dias fixos definidos: comportamento normal, fecha o formulário.
+    // (O pai mantém o modal montado pra permitir a confirmação de geração de
+    // agenda quando há dias fixos — então quando não há, fechamos aqui mesmo.)
+    if (!scheduleSessions || fixedDays.length === 0) {
+      await onSubmit(packageData);
+      onCancel();
+      return;
+    }
+
+    // Com dias fixos: cria o pacote, depois gera os agendamentos do mês na
+    // agenda automaticamente, e só então mostra a confirmação.
+    setIsGenerating(true);
+    const newPackage = await onSubmit(packageData);
+
+    if (newPackage?.id) {
+      try {
+        const result = await generateMonthlyAppointments({
+          package_id: newPackage.id,
+          patient_id: patient.id,
+          professional_id: formData.professional_id,
+          room_id: selectedRoom || null,
+          fixed_days: fixedDays,
+          day_times: dayTimes,
+          start_date: formData.start_date,
+          duration: 60,
+          service_type: formData.plan_name,
+          notes: formData.notes
+        });
+        setGeneratedCount(result?.data?.created_count ?? 0);
+      } catch (err) {
+        console.error("Erro ao gerar agendamentos:", err);
+        setGeneratedCount(0);
+      }
+    }
+    setIsGenerating(false);
   };
 
   return (
@@ -179,7 +238,7 @@ export default function FixedPackageForm({
               <Input
                 type="number"
                 value={formData.total_sessions}
-                onChange={(e) => setFormData({ ...formData, total_sessions: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, total_sessions: e.target.value === '' ? '' : parseInt(e.target.value) || 0 })}
               />
             </div>
 
@@ -209,7 +268,7 @@ export default function FixedPackageForm({
                 type="number"
                 placeholder="0,00"
                 value={formData.plan_value}
-                onChange={(e) => handleValueChange('plan_value', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleValueChange('plan_value', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                 disabled={formData.is_free}
               />
               <div className="flex items-center gap-2">
@@ -230,7 +289,7 @@ export default function FixedPackageForm({
                   <Input
                     type="number"
                     value={formData.discount_percentage}
-                    onChange={(e) => handleValueChange('discount_percentage', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleValueChange('discount_percentage', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                   />
                 </div>
                 <div>
@@ -238,14 +297,14 @@ export default function FixedPackageForm({
                   <Input
                     type="number"
                     value={formData.discount_amount}
-                    onChange={(e) => handleValueChange('discount_amount', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleValueChange('discount_amount', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                   />
                 </div>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <Label className="text-lg font-bold text-blue-900">
-                  Valor Final: R$ {formData.final_value.toFixed(2)}
+                  Valor Final: R$ {(Number(formData.final_value) || 0).toFixed(2)}
                 </Label>
               </div>
 
@@ -273,10 +332,10 @@ export default function FixedPackageForm({
                     min="2"
                     max="12"
                     value={formData.installments}
-                    onChange={(e) => setFormData({ ...formData, installments: parseInt(e.target.value) || 1 })}
+                    onChange={(e) => setFormData({ ...formData, installments: e.target.value === '' ? '' : parseInt(e.target.value) || 1 })}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {formData.installments}x de R$ {(formData.final_value / formData.installments).toFixed(2)}
+                    {formData.installments || 1}x de R$ {((Number(formData.final_value) || 0) / (Number(formData.installments) || 1)).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -312,13 +371,76 @@ export default function FixedPackageForm({
             />
           </div>
 
+          {/* Dias e horários fixos das sessões */}
+          <div className="border-t pt-4">
+            <div className="flex items-center gap-2">
+              <Switch checked={scheduleSessions} onCheckedChange={setScheduleSessions} />
+              <Label className="font-semibold">Este pacote tem dias e horários fixos de sessão?</Label>
+            </div>
+
+            {scheduleSessions && (
+              <div className="space-y-4 mt-3">
+                <div className="space-y-3">
+                  {weekDays.map((day) => {
+                    const isSelected = fixedDays.includes(day.value);
+                    return (
+                      <div key={day.value} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${isSelected ? 'bg-green-50 border border-green-200' : ''}`}>
+                        <Checkbox checked={isSelected} onCheckedChange={() => handleDayToggle(day.value)} />
+                        <Label className="text-sm cursor-pointer w-20">{day.label}</Label>
+                        {isSelected && (
+                          <Input
+                            type="time"
+                            value={dayTimes[day.value] || "09:00"}
+                            onChange={(e) => handleDayTimeChange(day.value, e.target.value)}
+                            className="w-32"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {rooms.length > 0 && (
+                  <div>
+                    <Label>Sala padrão (opcional)</Label>
+                    <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a sala" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {rooms.map(r => (
+                          <SelectItem key={r.id} value={r.id}>{r.room_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {fixedDays.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                    <Calendar className="w-4 h-4 inline mr-1" />
+                    O sistema irá gerar automaticamente <strong>{fixedDays.length}x por semana</strong> todos os agendamentos do mês de <strong>{format(new Date(formData.start_date), "MMMM/yyyy", { locale: ptBR })}</strong>.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {generatedCount !== null && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 font-medium flex items-center justify-between">
+              <span>✅ {generatedCount} agendamento(s) criado(s) automaticamente na agenda!</span>
+              <Button size="sm" className="ml-2 bg-green-600 hover:bg-green-700" onClick={onCancel}>
+                Fechar
+              </Button>
+            </div>
+          )}
+
           <div className="flex gap-2 pt-4">
             <Button variant="outline" onClick={onCancel} className="flex-1">
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} className="flex-1 bg-green-600 hover:bg-green-700">
-              <Save className="w-4 h-4 mr-2" />
-              Salvar Pacote
+            <Button onClick={handleSubmit} disabled={isGenerating} className="flex-1 bg-green-600 hover:bg-green-700">
+              {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Gerando agendamentos...</> : <><Save className="w-4 h-4 mr-2" />Salvar Pacote</>}
             </Button>
           </div>
         </CardContent>

@@ -15,6 +15,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import WhatsAppMessageSender from "@/components/admin/WhatsAppMessageSender";
+import WhatsAppMessageTemplates from "@/components/admin/WhatsAppMessageTemplates";
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -109,6 +110,13 @@ export default function AdminPanel() {
       icon: MessageCircle,
       action: 'whatsapp',
       color: "bg-green-500"
+    },
+    {
+      title: "Editar Mensagens do Bot",
+      description: "Personalizar os textos automáticos do WhatsApp",
+      icon: FileText,
+      action: 'whatsapp-templates',
+      color: "bg-teal-500"
     }
   ];
 
@@ -141,6 +149,23 @@ export default function AdminPanel() {
             Voltar ao Painel
           </button>
           <WhatsAppMessageSender />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'whatsapp-templates') {
+    return (
+      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 font-medium"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Voltar ao Painel
+          </button>
+          <WhatsAppMessageTemplates />
         </div>
       </div>
     );
@@ -224,7 +249,7 @@ export default function AdminPanel() {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {quickActions.map((action, index) => (
                 <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700">
-                <CardContent className="p-6" onClick={() => action.href ? window.location.href = action.href : action.action === 'whatsapp' && setActiveTab('whatsapp')}>
+                <CardContent className="p-6" onClick={() => action.href ? window.location.href = action.href : action.action && setActiveTab(action.action)}>
                   <div className="flex items-start gap-4">
                     <div className={`p-3 rounded-xl ${action.color} bg-opacity-20`}>
                       <action.icon className={`w-6 h-6 ${action.color.replace('bg-', 'text-')}`} />

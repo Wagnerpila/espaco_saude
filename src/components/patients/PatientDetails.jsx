@@ -29,7 +29,7 @@ function formatDateBR(isoDate) {
   const [y, m, d] = isoDate.split('-');
   return `${d}/${m}/${y}`;
 }
-import { Appointment, FinancialRecord, ServicePackage, ServicePlan } from "@/entities/all";
+import { Appointment, FinancialRecord, ServicePackage, ServicePlan, Room } from "@/entities/all";
 import RecurringServiceForm from "../packages/RecurringServiceForm";
 import FixedPackageForm from "../packages/FixedPackageForm";
 import PersonalizedPackageForm from "../packages/PersonalizedPackageForm";
@@ -51,6 +51,7 @@ export default function PatientDetails({ patient, onEdit }) {
   const [selectedPackageType, setSelectedPackageType] = useState(null);
   const [professionals, setProfessionals] = useState([]);
   const [servicePlans, setServicePlans] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [expandedServiceType, setExpandedServiceType] = useState(null);
   const [selectedEditPackage, setSelectedEditPackage] = useState(null);
 
@@ -90,6 +91,10 @@ export default function PatientDetails({ patient, onEdit }) {
       // Load service plans
       const plansData = await ServicePlan.list();
       setServicePlans(plansData);
+
+      // Load rooms (usadas na geração automática de agenda dos planos com dias fixos)
+      const roomsData = await Room.filter({ active: true });
+      setRooms(roomsData);
     } catch (error) {
       console.error("Erro ao carregar dados do paciente:", error);
     }
@@ -215,13 +220,20 @@ Agradecemos a sua atenção!
       }
       
       alert(selectedEditPackage ? "Pacote atualizado com sucesso!" : "Pacote criado com sucesso!");
-      
-      setShowPackageForm(false);
-      setSelectedPackageType(null);
+
+      // Recorrente/fixo com dias fixos mantém o modal aberto pra mostrar a
+      // confirmação de agendamentos gerados automaticamente na agenda —
+      // fechar aqui de imediato faria a geração nunca aparecer pro usuário.
+      if (selectedEditPackage || (selectedPackageType !== "recurring" && selectedPackageType !== "fixed")) {
+        setShowPackageForm(false);
+        setSelectedPackageType(null);
+      }
       setSelectedEditPackage(null);
-      
+
       // Recarregar todos os dados do paciente
       await loadPatientData();
+
+      return newPackage;
     } catch (error) {
       console.error("Erro ao criar pacote:", error);
       alert("Erro ao criar pacote: " + (error.response?.data?.error || error.message));
@@ -616,6 +628,7 @@ Agradecemos a sua atenção!
           patient={patient}
           professionals={professionals}
           servicePlans={servicePlans}
+          rooms={rooms}
           onSubmit={handleSubmitPackage}
           onCancel={() => {
             setShowPackageForm(false);
@@ -630,6 +643,7 @@ Agradecemos a sua atenção!
           patient={patient}
           professionals={professionals}
           servicePlans={servicePlans}
+          rooms={rooms}
           onSubmit={handleSubmitPackage}
           onCancel={() => {
             setShowPackageForm(false);

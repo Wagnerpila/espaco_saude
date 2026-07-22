@@ -49,18 +49,18 @@ export default function SchedulePage() {
 
   const handleSubmit = async (appointmentData) => {
     try {
-      if (editingAppointment) {
-        await Appointment.update(editingAppointment.id, appointmentData);
-      } else {
-        await Appointment.create(appointmentData);
-      }
+      const saved = editingAppointment
+        ? await Appointment.update(editingAppointment.id, appointmentData)
+        : await Appointment.create(appointmentData);
       setShowForm(false);
       setEditingAppointment(null);
       setSelectedSlot(null);
       loadData();
+      return saved;
     } catch (error) {
       console.error("Erro ao salvar agendamento:", error);
       toast.error(error.response?.data?.error || "Erro ao salvar agendamento");
+      throw error;
     }
   };
 

@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import { formatPhone, todayBrasilia } from '../utils/format.js';
+import { loadMessageRenderer } from './whatsappMessages.js';
 
 // Porte quase 1:1 de base44/functions/sofiaAgent/entry.ts — máquina de
 // estados explícita (menu numérico) para o bot de WhatsApp. Antes rodava
@@ -13,8 +14,6 @@ const ATTENDANT_TIMEOUT_MS = 60 * 60 * 1000; // 1 hora
 
 const DAY_MAP = { 0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday' };
 const DAY_NAMES_PT = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-
-const MENU_TEXT = `👇 *Digite o número da opção desejada:*\n\n1️⃣ Agendar consulta\n2️⃣ Cancelar consulta\n3️⃣ Informações sobre serviços\n4️⃣ Falar com atendente`;
 
 function normMsg(msg) {
   return String(msg).trim().replace(/[^\d\w]/g, '').toLowerCase();
@@ -69,6 +68,8 @@ function getAvailableSlots(dayConfig, bookedTimes) {
 // Processa uma mensagem recebida e devolve a resposta a ser enviada (ou
 // { ignored: true } se o bot deve ficar em silêncio — modo atendente).
 export async function processInboundMessage({ phone, message, sessionId }) {
+  const t = await loadMessageRenderer();
+  const menuText = t('MENU_OPTIONS');
   const phoneNorm = formatPhone(phone);
   const sessionKey = sessionId || phoneNorm;
   const now = new Date();
@@ -109,52 +110,52 @@ export async function processInboundMessage({ phone, message, sessionId }) {
 
   if (isGreeting && !safeguardSteps.includes(state.step)) {
     const nome = patientByPhone ? `, ${patientByPhone.fullName.split(' ')[0]}` : '';
-    reply = `Olá${nome}! 👋 Bem-vindo(a) à Clínica Espaço Saúde.\n\nO que deseja fazer?\n\n${MENU_TEXT}`;
+    reply = t('GREETING_MENU', { first_name: nome, menu: menuText });
     state = { step: 'AGUARDA_MENU' };
     draft = {};
   } else {
     switch (state.step) {
       case 'MENU': {
         const nome = patientByPhone ? `, ${patientByPhone.fullName.split(' ')[0]}` : '';
-        reply = `Olá${nome}! 👋 Bem-vindo(a) à Clínica Espaço Saúde.\n\n${MENU_TEXT}`;
+        reply = t('MENU', { first_name: nome, menu: menuText });
         state = { step: 'AGUARDA_MENU' };
         break;
       }
 
       case 'AGUARDA_MENU': {
         if (choice === '1') {
-          const lista = activeProfessionals.map((p, i) => `${i + 1}️⃣ ${p.fullName} - ${p.specialty}`).join('\n');
-          reply = `Ótimo! Escolha o profissional:\n\n${lista}\n\n👇 *Digite o número do profissional desejado:*`;
+          const lista = activeProfessionals.map((p, i) => t('LIST_ITEM_PROFESSIONAL', { i: i + 1, name: p.fullName, specialty: p.specialty })).join('\n');
+          reply = t('CHOOSE_PROFESSIONAL', { list: lista });
           state = { step: 'AGUARDA_PROFISSIONAL', profList: activeProfessionals.map((p) => p.id) };
         } else if (choice === '2') {
           if (!patientByPhone) {
-            reply = `Para cancelar, preciso identificar você.\n\n👇 *Digite seu CPF* (apenas números):`;
+            reply = t('ASK_CPF_TO_CANCEL');
             state = { step: 'CANCELAR_CPF' };
           } else {
             const today = todayBrasilia();
             const apts = await prisma.appointment.findMany({ where: { patientId: patientByPhone.id } });
             const futuras = apts.filter((a) => toISODate(a.appointmentDate) >= today && !['cancelled', 'completed'].includes(a.status));
             if (futuras.length === 0) {
-              reply = `Você não possui consultas futuras para cancelar.\n\n👇 *Digite menu* para voltar ao início.`;
+              reply = t('NO_APPOINTMENTS_TO_CANCEL');
               state = { step: 'MENU' };
             } else {
               const lista = futuras.map((a, i) => {
                 const prof = professionals.find((p) => p.id === a.professionalId);
-                return `${i + 1}️⃣ ${formatDateBR(a.appointmentDate)} às ${a.appointmentTime} com ${prof?.fullName || 'N/A'}`;
+                return t('LIST_ITEM_APPOINTMENT', { i: i + 1, date: formatDateBR(a.appointmentDate), time: a.appointmentTime, professional_name: prof?.fullName || 'N/A' });
               }).join('\n');
-              reply = `Qual consulta deseja cancelar?\n\n${lista}\n\n👇 *Digite o número da consulta* que deseja cancelar:`;
+              reply = t('CHOOSE_APPOINTMENT_TO_CANCEL', { list: lista });
               state = { step: 'AGUARDA_CANCELAR', aptIds: futuras.map((a) => a.id) };
             }
           }
         } else if (choice === '3') {
-          reply = `Nossos serviços:\n\n💆 *Estética* - Tratamentos faciais e corporais\n🦴 *Fisioterapia* - Ortopédica e neurológica\n🧘 *Pilates* - Equipamento e solo\n\n⏰ Horários:\nSeg-Sex: 08h às 18h\nSáb: 08h às 12h\n\n👇 *Digite 1* para agendar ou *menu* para voltar ao início.`;
+          reply = t('SERVICES_INFO');
           state = { step: 'AGUARDA_MENU' };
         } else if (choice === '4') {
-          reply = `Encaminhando para atendente... 📞\n\nEm breve alguém entrará em contato.\n\n👇 *Digite menu* para voltar ao início.`;
+          reply = t('TRANSFER_TO_ATTENDANT');
           const attendantUntil = new Date(Date.now() + ATTENDANT_TIMEOUT_MS).toISOString();
           state = { step: 'MENU', attendant_mode_until: attendantUntil };
         } else {
-          reply = `⚠️ Opção não reconhecida.\n\n${MENU_TEXT}`;
+          reply = t('MENU_INVALID', { menu: menuText });
         }
         break;
       }
@@ -166,13 +167,13 @@ export async function processInboundMessage({ phone, message, sessionId }) {
           : activeProfessionals;
         const idx = parseInt(choice, 10) - 1;
         if (Number.isNaN(idx) || idx < 0 || idx >= orderedProfs.length) {
-          const lista = orderedProfs.map((p, i) => `${i + 1}️⃣ ${p.fullName} - ${p.specialty}`).join('\n');
-          reply = `⚠️ Opção inválida.\n\n${lista}\n\n👇 *Digite o número* do profissional desejado:`;
+          const lista = orderedProfs.map((p, i) => t('LIST_ITEM_PROFESSIONAL', { i: i + 1, name: p.fullName, specialty: p.specialty })).join('\n');
+          reply = t('INVALID_PROFESSIONAL_CHOICE', { list: lista });
         } else {
           const prof = orderedProfs[idx];
           draft.professional_id = prof.id;
           draft.professional_name = prof.fullName;
-          reply = `Ótimo! *${prof.fullName}* selecionado. ✅\n\n👇 *Digite a data* que preferir no formato *DD/MM/AAAA*\n\nExemplo: 15/05/2026`;
+          reply = t('PROFESSIONAL_SELECTED', { professional_name: prof.fullName });
           state = { step: 'AGUARDA_DATA' };
         }
         break;
@@ -181,22 +182,22 @@ export async function processInboundMessage({ phone, message, sessionId }) {
       case 'AGUARDA_DATA': {
         const dateMatch = message.match(/(\d{2})\/(\d{2})\/(\d{4})/);
         if (!dateMatch) {
-          reply = `⚠️ Data inválida.\n\n👇 *Digite a data* no formato *DD/MM/AAAA*\n\nExemplo: 15/05/2026`;
+          reply = t('INVALID_DATE_FORMAT');
         } else {
           const isoDate = parseDateBR(message);
           const dayOfWeek = getDayOfWeek(isoDate);
           const today = todayBrasilia();
 
           if (isoDate < today) {
-            reply = `⚠️ Esta data já passou.\n\n👇 *Digite uma data futura* no formato *DD/MM/AAAA*`;
+            reply = t('DATE_IN_PAST');
           } else if (dayOfWeek === 0) {
-            reply = `Aos domingos estamos fechados. 🔒\n\n👇 *Digite outra data* no formato *DD/MM/AAAA*`;
+            reply = t('CLOSED_SUNDAY');
           } else {
             const profissional = professionals.find((p) => p.id === draft.professional_id);
             const dayConfig = getProfessionalDaySchedule(profissional, dayOfWeek);
 
             if (!dayConfig) {
-              reply = `${draft.professional_name} não atende às ${DAY_NAMES_PT[dayOfWeek]}s. 🔒\n\n👇 *Digite outra data* no formato *DD/MM/AAAA*`;
+              reply = t('PROFESSIONAL_NOT_AVAILABLE_WEEKDAY', { professional_name: draft.professional_name, day_name: DAY_NAMES_PT[dayOfWeek] });
             } else {
               const blocks = await prisma.scheduleBlock.findMany({ where: { professionalId: draft.professional_id, active: true } });
               const isBlocked = blocks.some((b) => {
@@ -207,7 +208,7 @@ export async function processInboundMessage({ phone, message, sessionId }) {
               });
 
               if (isBlocked) {
-                reply = `${draft.professional_name} não está disponível em *${formatDateBR(isoDate)}* (feriado ou bloqueio de agenda).\n\n👇 *Digite outra data* no formato *DD/MM/AAAA*`;
+                reply = t('PROFESSIONAL_BLOCKED_DATE', { professional_name: draft.professional_name, date: formatDateBR(isoDate) });
               } else {
                 const apts = await prisma.appointment.findMany({
                   where: { appointmentDate: new Date(isoDate), professionalId: draft.professional_id },
@@ -219,11 +220,11 @@ export async function processInboundMessage({ phone, message, sessionId }) {
                 const slots = getAvailableSlots(dayConfig, bookedTimes);
 
                 if (slots.length === 0) {
-                  reply = `Não há horários disponíveis em *${formatDateBR(isoDate)}* com ${draft.professional_name}.\n\n👇 *Digite outra data* no formato *DD/MM/AAAA*`;
+                  reply = t('NO_SLOTS_AVAILABLE', { date: formatDateBR(isoDate), professional_name: draft.professional_name });
                 } else {
                   draft.date = isoDate;
-                  const lista = slots.map((s, i) => `${i + 1}️⃣ ${s}`).join('\n');
-                  reply = `Horários disponíveis em *${formatDateBR(isoDate)}* com ${draft.professional_name}:\n\n${lista}\n\n_(Expediente: ${dayConfig.start} às ${dayConfig.end})_\n\n👇 *Digite o número* do horário desejado:`;
+                  const lista = slots.map((s, i) => t('LIST_ITEM_SLOT', { i: i + 1, time: s })).join('\n');
+                  reply = t('SLOTS_AVAILABLE', { date: formatDateBR(isoDate), professional_name: draft.professional_name, list: lista, start: dayConfig.start, end: dayConfig.end });
                   state = { step: 'AGUARDA_HORARIO', slots };
                 }
               }
@@ -237,15 +238,15 @@ export async function processInboundMessage({ phone, message, sessionId }) {
         const slots = state.slots || [];
         const idx = parseInt(choice, 10) - 1;
         if (Number.isNaN(idx) || idx < 0 || idx >= slots.length) {
-          const lista = slots.map((s, i) => `${i + 1}️⃣ ${s}`).join('\n');
-          reply = `⚠️ Opção inválida.\n\n${lista}\n\n👇 *Digite o número* do horário desejado:`;
+          const lista = slots.map((s, i) => t('LIST_ITEM_SLOT', { i: i + 1, time: s })).join('\n');
+          reply = t('INVALID_SLOT_CHOICE', { list: lista });
         } else {
           draft.time = slots[idx];
           if (patientByPhone) {
-            reply = `Encontrei seu cadastro! ✅\n\n👤 *${patientByPhone.fullName}*\n📱 ${patientByPhone.phone}\n\nSeus dados estão corretos?\n\n1️⃣ Sim, estão corretos\n2️⃣ Não, quero usar outros dados\n\n👇 *Digite 1 ou 2:*`;
+            reply = t('FOUND_REGISTRATION', { patient_name: patientByPhone.fullName, patient_phone: patientByPhone.phone });
             state = { step: 'CONFIRMA_PACIENTE' };
           } else {
-            reply = `Não encontrei seu cadastro no sistema. Vou fazer um cadastro rápido! 📋\n\n*Passo 1 de 3*\n👇 *Digite seu nome completo:*`;
+            reply = t('NOT_FOUND_QUICK_REGISTER');
             state = { step: 'CADASTRO_NOME' };
           }
         }
@@ -256,20 +257,20 @@ export async function processInboundMessage({ phone, message, sessionId }) {
         if (choice === '1') {
           draft.patient_id = patientByPhone.id;
           draft.patient_name = patientByPhone.fullName;
-          reply = `Perfeito! Confirme o agendamento:\n\n📅 *Data:* ${formatDateBR(draft.date)}\n⏰ *Horário:* ${draft.time}\n👨‍⚕️ *Profissional:* ${draft.professional_name}\n👤 *Paciente:* ${draft.patient_name}\n\n1️⃣ ✅ Confirmar agendamento\n2️⃣ ❌ Cancelar\n\n👇 *Digite 1 para confirmar ou 2 para cancelar:*`;
+          reply = t('CONFIRM_APPOINTMENT_SUMMARY', { date: formatDateBR(draft.date), time: draft.time, professional_name: draft.professional_name, patient_name: draft.patient_name });
           state = { step: 'CONFIRMA_AGENDAMENTO' };
         } else if (choice === '2') {
-          reply = `Ok! Vamos usar outros dados.\n\n*Passo 1 de 3*\n👇 *Digite seu nome completo:*`;
+          reply = t('USE_OTHER_DATA');
           state = { step: 'CADASTRO_NOME' };
         } else {
-          reply = `👇 *Digite 1 ou 2:*\n\n1️⃣ Sim, meus dados estão corretos\n2️⃣ Não, quero usar outros dados`;
+          reply = t('ASK_1_OR_2_CORRECT_DATA');
         }
         break;
       }
 
       case 'CADASTRO_NOME': {
         if (message.trim().length < 3) {
-          reply = `⚠️ Nome muito curto. Por favor informe seu nome completo.\n\n👇 *Digite seu nome completo:*`;
+          reply = t('NAME_TOO_SHORT');
         } else {
           draft.patient_name = message.trim();
           const nomeNorm = draft.patient_name.toLowerCase();
@@ -279,10 +280,10 @@ export async function processInboundMessage({ phone, message, sessionId }) {
           if (found && found.phone !== phoneNorm) {
             draft.found_patient_id = found.id;
             draft.found_patient_name = found.fullName;
-            reply = `Encontrei um cadastro com nome similar:\n\n👤 *${found.fullName}*\n\nÉ você?\n\n1️⃣ Sim, sou eu\n2️⃣ Não, sou outra pessoa\n\n👇 *Digite 1 ou 2:*`;
+            reply = t('FOUND_SIMILAR_NAME', { found_name: found.fullName });
             state = { step: 'CONFIRMA_PACIENTE_NOME' };
           } else {
-            reply = `✅ Nome registrado: *${draft.patient_name}*\n\n*Passo 2 de 3*\n👇 *Digite seu CPF* (somente números, 11 dígitos):\n\nExemplo: 12345678900`;
+            reply = t('NAME_REGISTERED_ASK_CPF', { patient_name: draft.patient_name });
             state = { step: 'CADASTRO_CPF' };
           }
         }
@@ -293,13 +294,13 @@ export async function processInboundMessage({ phone, message, sessionId }) {
         if (choice === '1') {
           draft.patient_id = draft.found_patient_id;
           draft.patient_name = draft.found_patient_name;
-          reply = `Perfeito! Confirme o agendamento:\n\n📅 *Data:* ${formatDateBR(draft.date)}\n⏰ *Horário:* ${draft.time}\n👨‍⚕️ *Profissional:* ${draft.professional_name}\n👤 *Paciente:* ${draft.patient_name}\n\n1️⃣ ✅ Confirmar agendamento\n2️⃣ ❌ Cancelar\n\n👇 *Digite 1 para confirmar ou 2 para cancelar:*`;
+          reply = t('CONFIRM_APPOINTMENT_SUMMARY', { date: formatDateBR(draft.date), time: draft.time, professional_name: draft.professional_name, patient_name: draft.patient_name });
           state = { step: 'CONFIRMA_AGENDAMENTO' };
         } else if (choice === '2') {
-          reply = `Ok! Vamos continuar seu cadastro.\n\n*Passo 2 de 3*\n👇 *Digite seu CPF* (somente números, 11 dígitos):\n\nExemplo: 12345678900`;
+          reply = t('CONTINUE_REGISTER_ASK_CPF');
           state = { step: 'CADASTRO_CPF' };
         } else {
-          reply = `👇 *Digite 1 ou 2:*\n\n1️⃣ Sim, sou eu\n2️⃣ Não, sou outra pessoa`;
+          reply = t('ASK_1_OR_2_IS_YOU');
         }
         break;
       }
@@ -307,17 +308,17 @@ export async function processInboundMessage({ phone, message, sessionId }) {
       case 'CADASTRO_CPF': {
         const cpf = message.replace(/\D/g, '');
         if (cpf.length !== 11) {
-          reply = `⚠️ CPF inválido. Precisa ter 11 dígitos.\n\n👇 *Digite seu CPF* (somente números):\n\nExemplo: 12345678900`;
+          reply = t('INVALID_CPF');
         } else {
           const cpfFound = allPatients.find((p) => p.cpf && p.cpf.replace(/\D/g, '') === cpf);
           if (cpfFound) {
             draft.patient_id = cpfFound.id;
             draft.patient_name = cpfFound.fullName;
-            reply = `✅ CPF encontrado! Cadastro localizado:\n\n👤 *${cpfFound.fullName}*\n\nConfirme o agendamento:\n\n📅 *Data:* ${formatDateBR(draft.date)}\n⏰ *Horário:* ${draft.time}\n👨‍⚕️ *Profissional:* ${draft.professional_name}\n\n1️⃣ ✅ Confirmar agendamento\n2️⃣ ❌ Cancelar\n\n👇 *Digite 1 para confirmar ou 2 para cancelar:*`;
+            reply = t('CPF_FOUND_CONFIRM', { patient_name: cpfFound.fullName, date: formatDateBR(draft.date), time: draft.time, professional_name: draft.professional_name });
             state = { step: 'CONFIRMA_AGENDAMENTO' };
           } else {
             draft.patient_cpf = cpf;
-            reply = `✅ CPF registrado.\n\n*Passo 3 de 3*\n👇 *Digite sua data de nascimento* no formato *DD/MM/AAAA*:\n\nExemplo: 15/03/1990`;
+            reply = t('CPF_REGISTERED_ASK_BIRTH');
             state = { step: 'CADASTRO_NASCIMENTO' };
           }
         }
@@ -327,10 +328,10 @@ export async function processInboundMessage({ phone, message, sessionId }) {
       case 'CADASTRO_NASCIMENTO': {
         const dateMatchBirth = message.match(/(\d{2})\/(\d{2})\/(\d{4})/);
         if (!dateMatchBirth) {
-          reply = `⚠️ Data inválida.\n\n👇 *Digite sua data de nascimento* no formato *DD/MM/AAAA*:\n\nExemplo: 15/03/1990`;
+          reply = t('INVALID_BIRTH_DATE');
         } else {
           draft.patient_birth = parseDateBR(message);
-          reply = `✅ Cadastro quase pronto!\n\nResumo dos seus dados:\n👤 *Nome:* ${draft.patient_name}\n🪪 *CPF:* ${draft.patient_cpf}\n🎂 *Nascimento:* ${dateMatchBirth[0]}\n\nSeus dados estão corretos?\n\n1️⃣ ✅ Sim, continuar\n2️⃣ ✏️ Corrigir dados\n\n👇 *Digite 1 para continuar ou 2 para corrigir:*`;
+          reply = t('REGISTRATION_SUMMARY_CONFIRM', { patient_name: draft.patient_name, patient_cpf: draft.patient_cpf, birth_date: dateMatchBirth[0] });
           state = { step: 'CONFIRMA_CADASTRO' };
         }
         break;
@@ -338,16 +339,16 @@ export async function processInboundMessage({ phone, message, sessionId }) {
 
       case 'CONFIRMA_CADASTRO': {
         if (choice === '1') {
-          reply = `Confirme o agendamento:\n\n📅 *Data:* ${formatDateBR(draft.date)}\n⏰ *Horário:* ${draft.time}\n👨‍⚕️ *Profissional:* ${draft.professional_name}\n👤 *Paciente:* ${draft.patient_name}\n\n1️⃣ ✅ Confirmar agendamento\n2️⃣ ❌ Cancelar\n\n👇 *Digite 1 para confirmar ou 2 para cancelar:*`;
+          reply = t('CONFIRM_APPOINTMENT_SUMMARY_PLAIN', { date: formatDateBR(draft.date), time: draft.time, professional_name: draft.professional_name, patient_name: draft.patient_name });
           state = { step: 'CONFIRMA_AGENDAMENTO' };
         } else if (choice === '2') {
           draft.patient_name = '';
           draft.patient_cpf = '';
           draft.patient_birth = '';
-          reply = `Ok! Vamos corrigir.\n\n*Passo 1 de 3*\n👇 *Digite seu nome completo:*`;
+          reply = t('CORRECT_DATA_RESTART');
           state = { step: 'CADASTRO_NOME' };
         } else {
-          reply = `👇 *Digite 1 ou 2:*\n\n1️⃣ ✅ Sim, continuar\n2️⃣ ✏️ Corrigir dados`;
+          reply = t('ASK_1_OR_2_CONTINUE_OR_CORRECT');
         }
         break;
       }
@@ -379,15 +380,15 @@ export async function processInboundMessage({ phone, message, sessionId }) {
             },
           });
 
-          reply = `✅ *Agendamento confirmado com sucesso!*\n\n📅 *Data:* ${formatDateBR(draft.date)}\n⏰ *Horário:* ${draft.time}\n👨‍⚕️ *Profissional:* ${draft.professional_name}\n👤 *Paciente:* ${draft.patient_name}\n\nAté lá! 💙\n\n👇 *Digite menu* para voltar ao início.`;
+          reply = t('APPOINTMENT_CONFIRMED', { date: formatDateBR(draft.date), time: draft.time, professional_name: draft.professional_name, patient_name: draft.patient_name });
           state = { step: 'MENU' };
           draft = {};
         } else if (choice === '2') {
-          reply = `Agendamento cancelado. ❌\n\n👇 *Digite menu* para voltar ao início.`;
+          reply = t('APPOINTMENT_CANCELLED_BY_USER');
           state = { step: 'MENU' };
           draft = {};
         } else {
-          reply = `👇 *Digite 1 para confirmar ou 2 para cancelar:*\n\n1️⃣ ✅ Confirmar agendamento\n2️⃣ ❌ Cancelar`;
+          reply = t('ASK_1_OR_2_CONFIRM_OR_CANCEL');
         }
         break;
       }
@@ -396,10 +397,10 @@ export async function processInboundMessage({ phone, message, sessionId }) {
         const aptIds = state.aptIds || [];
         const idx = parseInt(choice, 10) - 1;
         if (Number.isNaN(idx) || idx < 0 || idx >= aptIds.length) {
-          reply = `⚠️ Opção inválida.\n\n👇 *Digite o número* da consulta que deseja cancelar:`;
+          reply = t('INVALID_CANCEL_APPOINTMENT_CHOICE');
         } else {
           await prisma.appointment.update({ where: { id: aptIds[idx] }, data: { status: 'cancelled' } });
-          reply = `✅ Consulta cancelada com sucesso.\n\n👇 *Digite menu* para voltar ao início.`;
+          reply = t('APPOINTMENT_CANCELLED_SUCCESS');
           state = { step: 'MENU' };
         }
         break;
@@ -409,20 +410,20 @@ export async function processInboundMessage({ phone, message, sessionId }) {
         const cpf = message.replace(/\D/g, '');
         const found = allPatients.find((p) => p.cpf && p.cpf.replace(/\D/g, '') === cpf);
         if (!found) {
-          reply = `CPF não encontrado. Verifique e tente novamente.\n\n👇 *Digite seu CPF* ou *menu* para voltar:`;
+          reply = t('CPF_NOT_FOUND');
         } else {
           const today = todayBrasilia();
           const apts = await prisma.appointment.findMany({ where: { patientId: found.id } });
           const futuras = apts.filter((a) => toISODate(a.appointmentDate) >= today && !['cancelled', 'completed'].includes(a.status));
           if (futuras.length === 0) {
-            reply = `Não há consultas futuras para cancelar.\n\n👇 *Digite menu* para voltar ao início.`;
+            reply = t('NO_APPOINTMENTS_TO_CANCEL');
             state = { step: 'MENU' };
           } else {
             const lista = futuras.map((a, i) => {
               const prof = professionals.find((p) => p.id === a.professionalId);
-              return `${i + 1}️⃣ ${formatDateBR(a.appointmentDate)} às ${a.appointmentTime} com ${prof?.fullName || 'N/A'}`;
+              return t('LIST_ITEM_APPOINTMENT', { i: i + 1, date: formatDateBR(a.appointmentDate), time: a.appointmentTime, professional_name: prof?.fullName || 'N/A' });
             }).join('\n');
-            reply = `Qual consulta deseja cancelar?\n\n${lista}\n\n👇 *Digite o número* da consulta que deseja cancelar:`;
+            reply = t('CHOOSE_APPOINTMENT_TO_CANCEL', { list: lista });
             state = { step: 'AGUARDA_CANCELAR', aptIds: futuras.map((a) => a.id) };
           }
         }
@@ -431,14 +432,14 @@ export async function processInboundMessage({ phone, message, sessionId }) {
 
       default: {
         const nome = patientByPhone ? `, ${patientByPhone.fullName.split(' ')[0]}` : '';
-        reply = `Olá${nome}! 👋\n\n${MENU_TEXT}`;
+        reply = t('DEFAULT_FALLBACK', { first_name: nome, menu: menuText });
         state = { step: 'AGUARDA_MENU' };
       }
     }
   }
 
   if (msg === 'menu' && !['MENU', 'AGUARDA_MENU'].includes(state.step)) {
-    reply = MENU_TEXT;
+    reply = menuText;
     state = { step: 'AGUARDA_MENU' };
     draft = {};
   }

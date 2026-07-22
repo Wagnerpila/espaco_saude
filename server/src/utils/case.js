@@ -13,10 +13,28 @@ export function requestToPrisma(body, { dateFields = [] } = {}) {
     if (META_FIELDS.has(key)) continue;
     out[snakeToCamel(key)] = value;
   }
+  // Campos de chave estrangeira opcionais (ex.: patient_id, appointment_id)
+  // vêm como "" quando o formulário não seleciona nada (padrão dos <Select>
+  // da UI) — "" não é um id válido, então o Postgres rejeita por violação de
+  // FK e a criação falha inteira, silenciosamente, pra qualquer entidade que
+  // tenha um relacionamento opcional não preenchido (ex.: nova transação
+  // financeira sem paciente/profissional/agendamento vinculado).
+  for (const key of Object.keys(out)) {
+    if (key !== 'id' && key.endsWith('Id') && out[key] === '') {
+      out[key] = null;
+    }
+  }
   for (const field of dateFields) {
     const camelKey = snakeToCamel(field);
+    if (!(camelKey in out)) continue;
     const value = out[camelKey];
-    if (value === undefined || value === null || value === '') continue;
+    // Campo de data enviado vazio (ex.: paciente sem data de nascimento)
+    // precisa virar `null`, não ficar como string vazia — o Prisma rejeita
+    // "" para uma coluna DateTime e o create/update falha com 500.
+    if (value === undefined || value === null || value === '') {
+      out[camelKey] = null;
+      continue;
+    }
     out[camelKey] = Array.isArray(value) ? value.map((v) => new Date(v)) : new Date(value);
   }
   return out;

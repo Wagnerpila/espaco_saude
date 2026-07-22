@@ -48,9 +48,9 @@ export default function SingleServiceForm({
     const updates = { [field]: value };
     
     if (field === 'plan_value' || field === 'discount_percentage' || field === 'discount_amount' || field === 'is_free') {
-      const planValue = field === 'plan_value' ? value : formData.plan_value;
-      const discPerc = field === 'discount_percentage' ? value : formData.discount_percentage;
-      const discAmount = field === 'discount_amount' ? value : formData.discount_amount;
+      const planValue = Number(field === 'plan_value' ? value : formData.plan_value) || 0;
+      const discPerc = Number(field === 'discount_percentage' ? value : formData.discount_percentage) || 0;
+      const discAmount = Number(field === 'discount_amount' ? value : formData.discount_amount) || 0;
       const isFree = field === 'is_free' ? value : formData.is_free;
       
       updates.final_value = calculateFinalValue(planValue, discPerc, discAmount, isFree);
@@ -102,10 +102,10 @@ export default function SingleServiceForm({
       package_type: formData.package_type,
       plan_name: formData.plan_name,
       start_date: formData.start_date,
-      plan_value: formData.plan_value,
-      discount_percentage: formData.discount_percentage,
-      discount_amount: formData.discount_amount,
-      final_value: formData.final_value,
+      plan_value: Number(formData.plan_value) || 0,
+      discount_percentage: Number(formData.discount_percentage) || 0,
+      discount_amount: Number(formData.discount_amount) || 0,
+      final_value: Number(formData.final_value) || 0,
       is_free: formData.is_free,
       limit_sessions: true,
       sessions_per_cycle: 1,
@@ -188,7 +188,7 @@ export default function SingleServiceForm({
                 type="number"
                 placeholder="0,00"
                 value={formData.plan_value}
-                onChange={(e) => handleValueChange('plan_value', parseFloat(e.target.value) || 0)}
+                onChange={(e) => handleValueChange('plan_value', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                 disabled={formData.is_free}
               />
               <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export default function SingleServiceForm({
                   <Input
                     type="number"
                     value={formData.discount_percentage}
-                    onChange={(e) => handleValueChange('discount_percentage', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleValueChange('discount_percentage', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                   />
                 </div>
                 <div>
@@ -217,14 +217,14 @@ export default function SingleServiceForm({
                   <Input
                     type="number"
                     value={formData.discount_amount}
-                    onChange={(e) => handleValueChange('discount_amount', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleValueChange('discount_amount', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                   />
                 </div>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <Label className="text-lg font-bold text-blue-900">
-                  Valor Final: R$ {formData.final_value.toFixed(2)}
+                  Valor Final: R$ {(Number(formData.final_value) || 0).toFixed(2)}
                 </Label>
               </div>
 

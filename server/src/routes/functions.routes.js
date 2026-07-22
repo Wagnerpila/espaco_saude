@@ -32,4 +32,7 @@ functionsRouter.post('/sendInviteEmail', ...adminOnly, fns.sendInviteEmail);
 functionsRouter.post('/createHolidayBlocks', ...adminOnly, fns.createHolidayBlocks);
 functionsRouter.post('/dailyNotifications', ...adminOnly, fns.dailyNotifications);
 functionsRouter.post('/dailyReminders', ...adminOnly, fns.dailyReminders);
+functionsRouter.post('/generateRecurringExpenses', ...adminOnly, fns.generateRecurringExpenses);
+functionsRouter.post('/listWhatsAppMessageTemplates', ...adminOnly, fns.listWhatsAppMessageTemplates);
+functionsRouter.post('/saveWhatsAppMessageTemplate', ...adminOnly, fns.saveWhatsAppMessageTemplate);
 functionsRouter.post('/appointmentReminders1h', ...adminOnly, fns.appointmentReminders1h);

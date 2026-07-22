@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { DollarSign, Save, X } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -25,7 +26,9 @@ export default function FinancialForm({
     category: "",
     appointment_id: "",
     patient_id: "",
-    professional_id: ""
+    professional_id: "",
+    is_recurring: false,
+    due_date: ""
   });
 
   const handleSubmit = (e) => {
@@ -158,24 +161,45 @@ export default function FinancialForm({
               )}
 
               {formData.type === "expense" && (
-                <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => handleChange('category', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {expenseCategories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => handleChange('category', value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {expenseCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Data de Vencimento</Label>
+                    <Input
+                      type="date"
+                      value={formData.due_date}
+                      onChange={(e) => handleChange('due_date', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 md:col-span-2">
+                    <Switch
+                      checked={formData.is_recurring}
+                      onCheckedChange={(checked) => handleChange('is_recurring', checked)}
+                    />
+                    <Label className="cursor-pointer">
+                      Despesa recorrente fixa (repete todo mês automaticamente a partir do vencimento)
+                    </Label>
+                  </div>
+                </>
               )}
             </div>
 

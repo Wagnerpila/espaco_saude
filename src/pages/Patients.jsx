@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, Users, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 
 import PatientForm from "../components/patients/PatientForm";
 import PatientList from "../components/patients/PatientList";
@@ -57,6 +58,7 @@ export default function PatientsPage() {
       loadPatients();
     } catch (error) {
       console.error("Erro ao salvar paciente:", error);
+      toast.error(error.response?.data?.error || "Erro ao salvar paciente");
     }
   };
 

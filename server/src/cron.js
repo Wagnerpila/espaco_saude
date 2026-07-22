@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { dailyNotifications } from './functions/dailyNotifications.js';
 import { appointmentReminders1h } from './functions/appointmentReminders1h.js';
+import { generateRecurringExpenses } from './functions/generateRecurringExpenses.js';
 
 // Chama um handler Express fora de uma requisição HTTP real (usado pelo cron).
 function runHeadless(handler, label) {
@@ -32,4 +33,13 @@ export function startCronJobs() {
     { timezone: 'America/Sao_Paulo' }
   );
   console.log('[cron] appointmentReminders1h agendado para cada 15 minutos (America/Sao_Paulo)');
+
+  // Gera a próxima ocorrência mensal de despesas fixas recorrentes (ex.:
+  // aluguel) assim que o vencimento da anterior já passou — roda 1x por dia.
+  cron.schedule(
+    '0 6 * * *',
+    () => runHeadless(generateRecurringExpenses, 'generateRecurringExpenses'),
+    { timezone: 'America/Sao_Paulo' }
+  );
+  console.log('[cron] generateRecurringExpenses agendado para 06:00 (America/Sao_Paulo)');
 }

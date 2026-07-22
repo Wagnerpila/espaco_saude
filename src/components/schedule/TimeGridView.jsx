@@ -24,14 +24,18 @@ export default function TimeGridView({ date, appointments, professionals, patien
     setLocalAppointments(appointments);
   }, [appointments]);
 
-  const timeSlots = [];
+  const baseSlots = [];
   for (let hour = 7; hour <= 20; hour++) {
-    timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
-    if (hour < 20) timeSlots.push(`${String(hour).padStart(2, '0')}:30`);
+    baseSlots.push(`${String(hour).padStart(2, '0')}:00`);
+    if (hour < 20) baseSlots.push(`${String(hour).padStart(2, '0')}:30`);
   }
 
   const dateStr = format(date, 'yyyy-MM-dd');
   const dayAppointments = localAppointments.filter(apt => apt.appointment_date === dateStr);
+
+  // Agendamentos em horários que não caem nos slots fixos de 30min (ex: 12:15)
+  // também precisam de uma linha própria na grade, senão somem da agenda.
+  const timeSlots = [...new Set([...baseSlots, ...dayAppointments.map(apt => apt.appointment_time)])].sort();
 
   const getPatient = (id) => patients.find(p => p.id === id);
   const getProfessional = (id) => professionals.find(p => p.id === id);

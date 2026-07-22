@@ -34,17 +34,19 @@ export default function PersonalizedPackageForm({
 
   const calculateTotal = () => {
     const subtotal = formData.sessions.reduce((sum, session) => {
-      return sum + (session.quantity * session.unit_price);
+      return sum + ((Number(session.quantity) || 0) * (Number(session.unit_price) || 0));
     }, 0);
-    
+
+    const discPerc = Number(formData.discount_percentage) || 0;
+    const discAmount = Number(formData.discount_amount) || 0;
     let final = subtotal;
-    if (formData.discount_percentage > 0) {
-      final = subtotal - (subtotal * formData.discount_percentage / 100);
+    if (discPerc > 0) {
+      final = subtotal - (subtotal * discPerc / 100);
     }
-    if (formData.discount_amount > 0) {
-      final = final - formData.discount_amount;
+    if (discAmount > 0) {
+      final = final - discAmount;
     }
-    
+
     return formData.is_free ? 0 : Math.max(0, final);
   };
 
@@ -84,13 +86,13 @@ export default function PersonalizedPackageForm({
 
   const handleSubmit = () => {
     const total = calculateTotal();
-    const totalSessions = formData.sessions.reduce((sum, s) => sum + s.quantity, 0);
+    const totalSessions = formData.sessions.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
     // ServicePackage não tem uma coluna pra guardar a lista detalhada de
     // sessões — resume ela em texto dentro de notes pra não perder a
     // informação (a lista em si não pode ir pro backend, causa erro 500).
     const sessionsSummary = formData.sessions
       .filter((s) => s.service_type)
-      .map((s) => `${s.quantity}x ${s.service_type} (R$ ${s.unit_price.toFixed(2)} cada)`)
+      .map((s) => `${Number(s.quantity) || 0}x ${s.service_type} (R$ ${(Number(s.unit_price) || 0).toFixed(2)} cada)`)
       .join('; ');
 
     onSubmit({
@@ -100,8 +102,8 @@ export default function PersonalizedPackageForm({
       plan_name: formData.plan_name,
       start_date: formData.start_date,
       plan_value: total,
-      discount_percentage: formData.discount_percentage,
-      discount_amount: formData.discount_amount,
+      discount_percentage: Number(formData.discount_percentage) || 0,
+      discount_amount: Number(formData.discount_amount) || 0,
       final_value: total,
       is_free: formData.is_free,
       limit_sessions: true,
@@ -199,7 +201,7 @@ export default function PersonalizedPackageForm({
                           type="number"
                           min="1"
                           value={session.quantity}
-                          onChange={(e) => updateSession(index, 'quantity', parseInt(e.target.value) || 1)}
+                          onChange={(e) => updateSession(index, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value) || 1)}
                         />
                       </div>
                       <div className="w-28">
@@ -208,7 +210,7 @@ export default function PersonalizedPackageForm({
                           type="number"
                           step="0.01"
                           value={session.unit_price}
-                          onChange={(e) => updateSession(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateSession(index, 'unit_price', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                         />
                       </div>
                       {formData.sessions.length > 1 && (
@@ -223,7 +225,7 @@ export default function PersonalizedPackageForm({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      Subtotal: R$ {(session.quantity * session.unit_price).toFixed(2)}
+                      Subtotal: R$ {((Number(session.quantity) || 0) * (Number(session.unit_price) || 0)).toFixed(2)}
                     </p>
                   </CardContent>
                 </Card>
@@ -246,7 +248,7 @@ export default function PersonalizedPackageForm({
                 <Input
                   type="number"
                   value={formData.discount_percentage}
-                  onChange={(e) => setFormData({ ...formData, discount_percentage: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 })}
                 />
               </div>
               <div>
@@ -254,7 +256,7 @@ export default function PersonalizedPackageForm({
                 <Input
                   type="number"
                   value={formData.discount_amount}
-                  onChange={(e) => setFormData({ ...formData, discount_amount: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, discount_amount: e.target.value === '' ? '' : parseFloat(e.target.value) || 0 })}
                 />
               </div>
             </div>

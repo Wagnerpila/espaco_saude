@@ -1,6 +1,8 @@
 import { prisma } from '../db.js';
 import { sendWhatsAppMessage } from '../services/whatsapp.js';
 import { formatDateBR, formatCurrency, todayBrasilia } from '../utils/format.js';
+import { loadMessageRenderer } from '../services/whatsappMessages.js';
+import { getAppointmentWords } from '../utils/appointmentLabel.js';
 
 // Automação diária: lembretes de consulta do dia + avisos de pagamento pendente.
 // Chamada pelo cron interno (ver src/cron.js) e também exposta como endpoint
@@ -21,6 +23,7 @@ export async function dailyNotifications(_req, res, next) {
     const sentReminders = [];
     const sentPending = [];
     const errors = [];
+    const t = await loadMessageRenderer();
 
     const activeApts = appointments.filter((a) => ['pending', 'confirmed'].includes(a.status));
 
@@ -29,21 +32,15 @@ export async function dailyNotifications(_req, res, next) {
       const professional = professionals.find((p) => p.id === apt.professionalId);
       if (!patient?.phone) continue;
 
-      const message = [
-        `🔔 *Lembrete de Consulta - Clínica Espaço Saúde*`,
-        ``,
-        `Olá, ${patient.fullName}! 👋`,
-        `Você tem uma consulta *hoje*:`,
-        ``,
-        `⏰ *Horário:* ${apt.appointmentTime}`,
-        `👨‍⚕️ *Profissional:* ${professional?.fullName || 'A confirmar'}`,
-        apt.serviceType ? `🏥 *Serviço:* ${apt.serviceType}` : '',
-        ``,
-        `📍 Não esqueça de comparecer no horário marcado.`,
-        `Para cancelar ou reagendar, responda esta mensagem.`,
-        ``,
-        `Clínica Espaço Saúde 💙`,
-      ].filter(Boolean).join('\n');
+      const words = getAppointmentWords(apt.serviceType, professional?.specialty);
+      const message = t('DAILY_APPOINTMENT_REMINDER', {
+        patient_name: patient.fullName,
+        time: apt.appointmentTime,
+        professional_name: professional?.fullName || 'A confirmar',
+        service_line: apt.serviceType ? `🏥 *Serviço:* ${apt.serviceType}\n` : '',
+        appointment_noun: words.noun,
+        appointment_article_indef: words.articleIndef,
+      });
 
       try {
         await sendWhatsAppMessage(patient.phone, message);
@@ -70,19 +67,11 @@ export async function dailyNotifications(_req, res, next) {
         .join('\n');
       const maisItens = records.length > 5 ? `\n_...e mais ${records.length - 5} item(s)_` : '';
 
-      const message = [
-        `💳 *Lembrete de Pagamento Vencido*`,
-        ``,
-        `Olá, ${patient.fullName}! 👋`,
-        `Você possui pagamento(s) *vencido(s)* na Clínica Espaço Saúde:`,
-        ``,
-        itemsList + maisItens,
-        ``,
-        `💰 *Total vencido: R$ ${formatCurrency(total)}*`,
-        ``,
-        `Entre em contato ou compareça à clínica para regularizar.`,
-        `Clínica Espaço Saúde 💙`,
-      ].join('\n');
+      const message = t('PENDING_PAYMENT_REMINDER', {
+        patient_name: patient.fullName,
+        items_list: itemsList + maisItens,
+        total: formatCurrency(total),
+      });
 
       try {
         await sendWhatsAppMessage(patient.phone, message);

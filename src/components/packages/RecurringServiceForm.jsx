@@ -80,9 +80,9 @@ export default function RecurringServiceForm({
     const updates = { [field]: value };
     
     if (field === 'plan_value' || field === 'discount_percentage' || field === 'discount_amount' || field === 'is_free') {
-      const planValue = field === 'plan_value' ? value : formData.plan_value;
-      const discPerc = field === 'discount_percentage' ? value : formData.discount_percentage;
-      const discAmount = field === 'discount_amount' ? value : formData.discount_amount;
+      const planValue = Number(field === 'plan_value' ? value : formData.plan_value) || 0;
+      const discPerc = Number(field === 'discount_percentage' ? value : formData.discount_percentage) || 0;
+      const discAmount = Number(field === 'discount_amount' ? value : formData.discount_amount) || 0;
       const isFree = field === 'is_free' ? value : formData.is_free;
       
       updates.final_value = calculateFinalValue(planValue, discPerc, discAmount, isFree);
@@ -145,6 +145,7 @@ export default function RecurringServiceForm({
     // Se não tem dias fixos, submete e fecha normalmente
     if (formData.schedule_type !== 'fixed' || !formData.fixed_days?.length) {
       await onSubmit(packageData);
+      onCancel();
       return;
     }
 
@@ -265,7 +266,7 @@ export default function RecurringServiceForm({
                     type="number"
                     placeholder="0,00"
                     value={formData.plan_value}
-                    onChange={(e) => handleValueChange('plan_value', parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleValueChange('plan_value', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                     disabled={formData.is_free}
                   />
                   <div className="flex items-center gap-2">
@@ -287,7 +288,7 @@ export default function RecurringServiceForm({
                         <Input
                           type="number"
                           value={formData.discount_percentage}
-                          onChange={(e) => handleValueChange('discount_percentage', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => handleValueChange('discount_percentage', e.target.value === '' ? '' : parseFloat(e.target.value) || 0)}
                         />
                         <span className="text-sm">%</span>
                       </div>

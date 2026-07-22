@@ -1,6 +1,8 @@
 import { prisma } from '../db.js';
 import { sendWhatsAppMessage } from './whatsapp.js';
 import { formatDateBR } from '../utils/format.js';
+import { loadMessageRenderer } from './whatsappMessages.js';
+import { getAppointmentWords } from '../utils/appointmentLabel.js';
 
 // Confirmação de agendamento por WhatsApp — disparada tanto quando o próprio
 // paciente confirma pelo bot de chat (ver services/whatsappBot.js, que já
@@ -19,22 +21,18 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
 
   if (!patient?.phone) return { skipped: true, reason: 'Paciente sem telefone' };
 
-  const message = [
-    `✅ *Agendamento Confirmado!*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `🏥 *Clínica Espaço Saúde*`,
-    ``,
-    `Olá, ${patient.fullName}! 👋`,
-    `Sua consulta foi confirmada:`,
-    ``,
-    `📅 *Data:* ${formatDateBR(appointment.appointmentDate)}`,
-    `⏰ *Horário:* ${appointment.appointmentTime}`,
-    professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}` : '',
-    appointment.serviceType ? `🏷️ *Serviço:* ${appointment.serviceType}` : '',
-    ``,
-    `Te esperamos! 💙`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-  ].filter((s) => s !== '').join('\n');
+  const words = getAppointmentWords(appointment.serviceType, professional?.specialty);
+  const t = await loadMessageRenderer();
+  const message = t('APPOINTMENT_CONFIRMATION_NOTIFICATION', {
+    patient_name: patient.fullName,
+    date: formatDateBR(appointment.appointmentDate),
+    time: appointment.appointmentTime,
+    professional_line: professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}\n` : '',
+    service_line: appointment.serviceType ? `🏷️ *Serviço:* ${appointment.serviceType}\n` : '',
+    appointment_noun: words.noun,
+    appointment_article: words.article,
+    appointment_confirmed: words.confirmedWord,
+  });
 
   await sendWhatsAppMessage(patient.phone, message);
 
@@ -65,6 +63,7 @@ export async function sendOneHourAppointmentReminders() {
 
   const sent = [];
   const errors = [];
+  const t = await loadMessageRenderer();
 
   for (const apt of dueApts) {
     const already = await prisma.notification.findFirst({
@@ -75,16 +74,15 @@ export async function sendOneHourAppointmentReminders() {
     const patient = patients.find((p) => p.id === apt.patientId);
     if (!patient?.phone) continue;
     const professional = professionals.find((p) => p.id === apt.professionalId);
+    const words = getAppointmentWords(apt.serviceType, professional?.specialty);
 
-    const message = [
-      `⏰ *Sua consulta é daqui a 1 hora!*`,
-      ``,
-      `Olá, ${patient.fullName}! 👋`,
-      `Horário: *${apt.appointmentTime}*`,
-      professional ? `Profissional: *${professional.fullName}*` : '',
-      ``,
-      `Te esperamos na Clínica Espaço Saúde 💙`,
-    ].filter(Boolean).join('\n');
+    const message = t('APPOINTMENT_REMINDER_1H', {
+      patient_name: patient.fullName,
+      time: apt.appointmentTime,
+      professional_line: professional ? `Profissional: *${professional.fullName}*\n` : '',
+      appointment_noun: words.noun,
+      appointment_article: words.article,
+    });
 
     try {
       await sendWhatsAppMessage(patient.phone, message);

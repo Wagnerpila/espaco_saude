@@ -3,6 +3,8 @@ import { FinancialRecord, Patient, Professional } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+import { confirmPayment } from "@/functions/confirmPayment";
 import FinancialSummaryBar from "../components/financial/FinancialSummaryBar";
 import FinancialTransactionTable from "../components/financial/FinancialTransactionTable";
 import FinancialReportsByEntity from "../components/financial/FinancialReportsByEntity";
@@ -35,14 +37,33 @@ export default function FinancialPage() {
   };
 
   const handleSubmit = async (data) => {
-    if (editingTransaction) {
-      await FinancialRecord.update(editingTransaction.id, data);
-    } else {
-      await FinancialRecord.create(data);
+    try {
+      if (editingTransaction) {
+        await FinancialRecord.update(editingTransaction.id, data);
+      } else {
+        await FinancialRecord.create(data);
+      }
+      setShowForm(false);
+      setEditingTransaction(null);
+      loadData();
+    } catch (error) {
+      console.error("Erro ao salvar transação:", error);
+      toast.error(error.response?.data?.error || "Erro ao salvar transação");
     }
-    setShowForm(false);
-    setEditingTransaction(null);
-    loadData();
+  };
+
+  const handleConfirmPayment = async (transaction) => {
+    try {
+      await confirmPayment({
+        transactionId: transaction.id,
+        paymentMethod: transaction.payment_method || "cash",
+      });
+      toast.success("Pagamento confirmado!");
+      loadData();
+    } catch (error) {
+      console.error("Erro ao confirmar pagamento:", error);
+      toast.error(error.response?.data?.message || "Erro ao confirmar pagamento");
+    }
   };
 
   return (
@@ -97,6 +118,7 @@ export default function FinancialPage() {
               isLoading={isLoading}
               onEdit={(t) => { setEditingTransaction(t); setShowForm(true); }}
               onDelete={async (id) => { await FinancialRecord.delete(id); loadData(); }}
+              onConfirmPayment={handleConfirmPayment}
             />
           </TabsContent>
 
