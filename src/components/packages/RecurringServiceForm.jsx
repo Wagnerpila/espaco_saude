@@ -137,11 +137,16 @@ export default function RecurringServiceForm({
   };
 
   const handleSubmit = async () => {
+    if (!formData.plan_name || !formData.professional_id) {
+      alert("Preencha todos os campos obrigatórios (nome do plano e responsável pela venda).");
+      return;
+    }
+
     const packageData = {
       ...formData,
       patient_id: patient.id
     };
-    
+
     // Se não tem dias fixos, submete e fecha normalmente
     if (formData.schedule_type !== 'fixed' || !formData.fixed_days?.length) {
       await onSubmit(packageData);
@@ -337,7 +342,7 @@ export default function RecurringServiceForm({
               </div>
 
               <div>
-                <Label>Responsável pela venda</Label>
+                <Label>Responsável pela venda *</Label>
                 <Select
                   value={formData.professional_id}
                   onValueChange={(value) => setFormData({ ...formData, professional_id: value })}

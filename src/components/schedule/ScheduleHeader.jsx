@@ -1,16 +1,17 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Plus, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-export default function ScheduleHeader({ 
-  currentDate, 
-  viewMode, 
-  setViewMode, 
-  navigateDate, 
-  onNewAppointment 
+export default function ScheduleHeader({
+  currentDate,
+  viewMode,
+  setViewMode,
+  navigateDate,
+  onNewAppointment,
+  onExportPdf
 }) {
   const getDateRange = () => {
     if (viewMode === "day") {
@@ -70,7 +71,16 @@ export default function ScheduleHeader({
           </Button>
         </div>
         
-        <Button 
+        <Button
+          variant="outline"
+          onClick={onExportPdf}
+          title="Gerar PDF da agenda do dia exibido"
+        >
+          <FileDown className="w-4 h-4 mr-2" />
+          Imprimir PDF
+        </Button>
+
+        <Button
           onClick={onNewAppointment}
           className="bg-blue-600 hover:bg-blue-700"
         >

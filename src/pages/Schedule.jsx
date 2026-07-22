@@ -4,6 +4,7 @@ import { Appointment, Patient, Professional, Room } from "@/entities/all";
 import { format, addDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { exportScheduleToPdf } from "../utils/scheduleExport";
 
 import ScheduleHeader from "../components/schedule/ScheduleHeader";
 import DayView from "../components/schedule/DayView";
@@ -105,6 +106,10 @@ export default function SchedulePage() {
     setShowForm(true);
   };
 
+  const handleExportPdf = () => {
+    exportScheduleToPdf(currentDate, appointments, patients, professionals, rooms);
+  };
+
   const navigateDate = (direction) => {
     if (direction === "prev") {
       setCurrentDate(viewMode === "day" ? subDays(currentDate, 1) : subDays(currentDate, 7));
@@ -122,6 +127,7 @@ export default function SchedulePage() {
           setViewMode={setViewMode}
           navigateDate={navigateDate}
           onNewAppointment={() => setShowForm(true)}
+          onExportPdf={handleExportPdf}
         />
 
         {showForm && (

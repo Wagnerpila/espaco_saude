@@ -48,7 +48,12 @@ export default function UserManagementPage() {
       phone: p.phone, created_date: p.created_date, active: p.active
     }));
 
-    patientsData.filter(p => p.email).forEach(p => allUsers.push({
+    // Antes só entravam pacientes com email cadastrado (necessário pra
+    // convite/login) — mas isso fazia a contagem "Pacientes" aqui divergir
+    // da contagem real (Painel Admin, que conta todos). Mostramos todos os
+    // pacientes aqui também; ações de conta (editar email, etc.) continuam
+    // funcionando pelo id do paciente, não pelo email.
+    patientsData.forEach(p => allUsers.push({
       id: p.id, full_name: p.full_name, email: p.email,
       role: "patient", phone: p.phone,
       created_date: p.created_date, active: p.active

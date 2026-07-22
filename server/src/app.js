@@ -46,7 +46,14 @@ export function createApp() {
   app.use((err, _req, res, _next) => {
     console.error(err);
     const status = err.status || (err.code === 'P2025' ? 404 : 500);
-    res.status(status).json({ error: err.publicMessage || err.message || 'Erro interno' });
+    // Erros de validação do Prisma (ex.: campo obrigatório ausente/nulo) vêm
+    // com o payload inteiro despejado na mensagem — útil no log, péssimo pra
+    // mostrar direto ao usuário (vários telas fazem alert(error.message)).
+    const isPrismaValidationError = err.name === 'PrismaClientValidationError' || /^Invalid `prisma\./.test(err.message || '');
+    const message = isPrismaValidationError
+      ? 'Dados inválidos ou campo obrigatório não preenchido.'
+      : err.publicMessage || err.message || 'Erro interno';
+    res.status(status).json({ error: message });
   });
 
   return app;

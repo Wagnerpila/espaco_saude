@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { FinancialRecord, Patient, Professional } from "@/entities/all";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { confirmPayment } from "@/functions/confirmPayment";
+import { exportDailyFinancialReportToPdf } from "@/utils/financialExport";
 import FinancialSummaryBar from "../components/financial/FinancialSummaryBar";
 import FinancialTransactionTable from "../components/financial/FinancialTransactionTable";
 import FinancialReportsByEntity from "../components/financial/FinancialReportsByEntity";
@@ -20,6 +22,7 @@ export default function FinancialPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -76,7 +79,21 @@ export default function FinancialPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financeiro</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Controle completo de receitas, despesas e relatórios</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              className="h-8 w-40 text-sm"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals)}
+              className="gap-1"
+            >
+              <FileDown className="w-4 h-4" /> Relatório do Dia (PDF)
+            </Button>
             <Button variant="outline" size="sm" onClick={loadData} className="gap-1">
               <RefreshCw className="w-4 h-4" /> Atualizar
             </Button>
