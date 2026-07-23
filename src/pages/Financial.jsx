@@ -111,8 +111,13 @@ export default function FinancialPage() {
           </div>
         </div>
 
-        {/* Summary Bar (Receitas / Despesas / Saldo / Comissão) */}
-        <FinancialSummaryBar transactions={transactions} professionals={professionals} isLoading={isLoading} />
+        {/* Summary Bar (Receitas / Despesas / Saldo / Pagos / Comissão) */}
+        <FinancialSummaryBar
+          transactions={transactions}
+          professionals={professionals}
+          professionalFilter={professionalFilter}
+          isLoading={isLoading}
+        />
 
         {/* Form Modal */}
         {showForm && (

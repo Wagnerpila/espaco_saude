@@ -33,6 +33,12 @@ function calcCommission(amount, professional) {
   return ((amount || 0) * percentage) / 100;
 }
 
+// Profissional com 100% de comissão é o dono/administrador da clínica —
+// o valor não é repasse a terceiro, então não entra nos totais de comissão.
+function isClinicOwner(professional) {
+  return professional?.default_commission_percentage === 100;
+}
+
 // Gera um PDF com todas as transações financeiras (receitas e despesas) de um
 // dia específico, com os mesmos totais exibidos na tela de Financeiro —
 // pra imprimir e fechar o caixa do dia.
@@ -48,6 +54,7 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
   const totalExpense = expense.reduce((s, t) => s + (t.amount || 0), 0);
   const totalCommission = income.reduce((s, t) => {
     const professional = professionals.find((p) => p.id === t.professional_id);
+    if (isClinicOwner(professional)) return s;
     return s + calcCommission(t.amount, professional);
   }, 0);
 
@@ -90,7 +97,7 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
       y = 20;
     }
     const professional = professionals.find((p) => p.id === t.professional_id);
-    const hasCommission = t.type === "income" && professional?.default_commission_percentage > 0;
+    const hasCommission = t.type === "income" && professional?.default_commission_percentage > 0 && !isClinicOwner(professional);
 
     doc.text(truncate(t.description, COLUMNS[0].maxChars), COLUMNS[0].x, y);
     doc.text(truncate(professional?.full_name, COLUMNS[1].maxChars), COLUMNS[1].x, y);

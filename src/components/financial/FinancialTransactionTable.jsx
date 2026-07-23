@@ -12,22 +12,6 @@ function formatDateBR(iso) {
   return `${d}/${m}/${y}`;
 }
 
-const METHOD_COLORS = {
-  cash: "bg-green-100 text-green-800",
-  pix: "bg-blue-100 text-blue-800",
-  card: "bg-purple-100 text-purple-800",
-  bank_transfer: "bg-orange-100 text-orange-800",
-  pending: "bg-gray-100 text-gray-600",
-};
-
-const METHOD_LABELS = {
-  cash: "Dinheiro",
-  pix: "PIX",
-  card: "Cartão",
-  bank_transfer: "Transferência",
-  pending: "Pendente",
-};
-
 const STATUS_COLORS = {
   paid: "bg-green-100 text-green-700",
   pending: "bg-orange-100 text-orange-700",
@@ -40,6 +24,12 @@ function calcCommission(amount, professional) {
   const percentage = professional?.default_commission_percentage || 0;
   if (!percentage) return 0;
   return ((amount || 0) * percentage) / 100;
+}
+
+// Profissional com 100% de comissão é o dono/administrador da clínica —
+// não é repasse a terceiro, então não entra como "comissão".
+function isClinicOwner(professional) {
+  return professional?.default_commission_percentage === 100;
 }
 
 export default function FinancialTransactionTable({
@@ -143,7 +133,7 @@ export default function FinancialTransactionTable({
             {filtered.map(t => {
               const pat = getPatient(t.patient_id);
               const prof = getProfessional(t.professional_id);
-              const hasCommission = t.type === 'income' && prof?.default_commission_percentage > 0;
+              const hasCommission = t.type === 'income' && prof?.default_commission_percentage > 0 && !isClinicOwner(prof);
               const commission = hasCommission ? calcCommission(t.amount, prof) : 0;
               return (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
@@ -163,11 +153,6 @@ export default function FinancialTransactionTable({
                       <span>📅 {formatDateBR(t.transaction_date)}</span>
                     </div>
                   </div>
-
-                  {/* Method badge */}
-                  <Badge className={`text-xs ${METHOD_COLORS[t.payment_method] || 'bg-gray-100 text-gray-600'}`}>
-                    {METHOD_LABELS[t.payment_method] || t.payment_method || '—'}
-                  </Badge>
 
                   {/* Status badge */}
                   <Badge className={`text-xs ${STATUS_COLORS[t.payment_status] || 'bg-gray-100 text-gray-500'}`}>
