@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2 } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2, X } from "lucide-react";
 
 function formatDateBR(iso) {
   if (!iso) return '-';
@@ -40,6 +40,7 @@ export default function FinancialTransactionTable({
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
+  const [filterDay, setFilterDay] = useState("");
   const filterProfessional = professionalFilter ?? "all";
   const setFilterProfessional = onProfessionalFilterChange ?? (() => {});
 
@@ -59,12 +60,15 @@ export default function FinancialTransactionTable({
     const matchType = filterType === "all" || t.type === filterType;
     const matchStatus = filterStatus === "all" || t.payment_status === filterStatus;
     const matchMonth = filterMonth === "all" || t.transaction_date?.startsWith(filterMonth);
+    const matchDay = !filterDay || t.transaction_date === filterDay;
     const matchProfessional = filterProfessional === "all" || t.professional_id === filterProfessional;
-    return matchSearch && matchType && matchStatus && matchMonth && matchProfessional;
+    return matchSearch && matchType && matchStatus && matchMonth && matchDay && matchProfessional;
   });
 
-  const totalIncome = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const totalExpense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  // Cancelado (sessão que não aconteceu) nunca soma nos totais — só aparece
+  // na lista com o status "Cancelado" pra rastreabilidade.
+  const totalIncome = filtered.filter(t => t.type === 'income' && t.payment_status !== 'cancelled').reduce((s, t) => s + t.amount, 0);
+  const totalExpense = filtered.filter(t => t.type === 'expense' && t.payment_status !== 'cancelled').reduce((s, t) => s + t.amount, 0);
 
   if (isLoading) return <div className="h-40 bg-gray-100 rounded-xl animate-pulse" />;
 
@@ -88,6 +92,25 @@ export default function FinancialTransactionTable({
                 {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="relative">
+              <Input
+                type="date"
+                value={filterDay}
+                onChange={e => setFilterDay(e.target.value)}
+                className="h-8 w-36 text-xs pr-7"
+                title="Filtrar por dia"
+              />
+              {filterDay && (
+                <button
+                  type="button"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  title="Limpar filtro de dia"
+                  onClick={() => setFilterDay("")}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
@@ -133,7 +156,7 @@ export default function FinancialTransactionTable({
             {filtered.map(t => {
               const pat = getPatient(t.patient_id);
               const prof = getProfessional(t.professional_id);
-              const hasCommission = t.type === 'income' && prof?.default_commission_percentage > 0 && !isClinicOwner(prof);
+              const hasCommission = t.type === 'income' && t.payment_status !== 'cancelled' && prof?.default_commission_percentage > 0 && !isClinicOwner(prof);
               const commission = hasCommission ? calcCommission(t.amount, prof) : 0;
               return (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">

@@ -30,8 +30,11 @@ export default function FinancialSummaryBar({ transactions, professionals = [], 
     return d === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const income = thisMonth.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expenses = thisMonth.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  // Transações canceladas (ex.: sessão que virou no-show/ausência depois de
+  // já cobrada) nunca entram nos totais — só ficam visíveis na lista, com o
+  // status "Cancelado", pra não inflar receita de algo que não aconteceu.
+  const income = thisMonth.filter(t => t.type === 'income' && t.payment_status !== 'cancelled').reduce((s, t) => s + t.amount, 0);
+  const expenses = thisMonth.filter(t => t.type === 'expense' && t.payment_status !== 'cancelled').reduce((s, t) => s + t.amount, 0);
   const balance = income - expenses;
   const pending = scoped.filter(t => t.payment_status === 'pending' && t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const paid = thisMonth.filter(t => t.payment_status === 'paid' && t.type === 'income').reduce((s, t) => s + t.amount, 0);

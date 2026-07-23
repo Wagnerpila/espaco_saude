@@ -48,8 +48,10 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
     .filter((t) => !professionalId || professionalId === "all" || t.professional_id === professionalId)
     .sort((a, b) => (a.type === b.type ? 0 : a.type === "income" ? -1 : 1));
 
-  const income = dayTransactions.filter((t) => t.type === "income");
-  const expense = dayTransactions.filter((t) => t.type === "expense");
+  // Cancelado (sessão que não aconteceu) continua listado na tabela — pra
+  // rastreabilidade — mas nunca soma nos totais do dia.
+  const income = dayTransactions.filter((t) => t.type === "income" && t.payment_status !== "cancelled");
+  const expense = dayTransactions.filter((t) => t.type === "expense" && t.payment_status !== "cancelled");
   const totalIncome = income.reduce((s, t) => s + (t.amount || 0), 0);
   const totalExpense = expense.reduce((s, t) => s + (t.amount || 0), 0);
   const totalCommission = income.reduce((s, t) => {
@@ -97,7 +99,7 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
       y = 20;
     }
     const professional = professionals.find((p) => p.id === t.professional_id);
-    const hasCommission = t.type === "income" && professional?.default_commission_percentage > 0 && !isClinicOwner(professional);
+    const hasCommission = t.type === "income" && t.payment_status !== "cancelled" && professional?.default_commission_percentage > 0 && !isClinicOwner(professional);
 
     doc.text(truncate(t.description, COLUMNS[0].maxChars), COLUMNS[0].x, y);
     doc.text(truncate(professional?.full_name, COLUMNS[1].maxChars), COLUMNS[1].x, y);
@@ -151,4 +153,109 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
   doc.text(`Gerado em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, pageHeight - 8);
 
   doc.save(`financeiro_${dateStr}.pdf`);
+}
+
+// Gera um PDF só com o comprovante/recibo (não a página inteira) — o antigo
+// botão "Imprimir" chamava window.print() puro, que imprimia a tela cheia do
+// Financeiro (menu, cards, formulário) porque não isolava o comprovante.
+export function exportReceiptToPdf(invoice) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 18;
+  let y = 20;
+
+  doc.setFillColor("#2563eb");
+  doc.rect(0, 0, pageWidth, 28, "F");
+  doc.setTextColor("#ffffff");
+  doc.setFontSize(15);
+  doc.setFont(undefined, "bold");
+  doc.text("COMPROVANTE DE SERVIÇO", pageWidth / 2, 14, { align: "center" });
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  doc.text("Clínica Espaço Saúde", pageWidth / 2, 21, { align: "center" });
+
+  y = 40;
+  doc.setTextColor("#6b7280");
+  doc.setFontSize(9);
+  doc.text("Nº do Comprovante", margin, y);
+  y += 6;
+  doc.setTextColor("#2563eb");
+  doc.setFontSize(12);
+  doc.setFont(undefined, "bold");
+  doc.text(invoice.receipt_number, margin, y);
+  doc.setFont(undefined, "normal");
+  y += 12;
+
+  const rows = [
+    ["Data", formatDateBR(invoice.issue_date)],
+    ["Prestador", "Clínica Espaço Saúde"],
+    ["Paciente", invoice._patient?.full_name || "—"],
+    ...(invoice._patient?.cpf ? [["CPF", invoice._patient.cpf]] : []),
+    ["Profissional", invoice._professional?.full_name || "—"],
+    ["Serviço", invoice.service_description || "—"],
+    ["Pagamento", invoice.payment_method || "—"],
+  ];
+
+  doc.setFontSize(10);
+  for (const [label, value] of rows) {
+    doc.setTextColor("#6b7280");
+    doc.text(label, margin, y);
+    doc.setTextColor("#111827");
+    doc.setFont(undefined, "bold");
+    doc.text(String(value), pageWidth - margin, y, { align: "right" });
+    doc.setFont(undefined, "normal");
+    doc.setDrawColor("#e5e7eb");
+    doc.line(margin, y + 2, pageWidth - margin, y + 2);
+    y += 9;
+  }
+
+  y += 4;
+  doc.setFillColor("#f0fdf4");
+  const boxHeight = invoice.iss_aliquot > 0 ? 26 : 12;
+  doc.rect(margin, y, pageWidth - margin * 2, boxHeight, "F");
+  y += 8;
+  doc.setTextColor("#374151");
+  doc.text("Valor:", margin + 4, y);
+  doc.setFont(undefined, "bold");
+  doc.text(`R$ ${formatCurrency(invoice.gross_value)}`, pageWidth - margin - 4, y, { align: "right" });
+  doc.setFont(undefined, "normal");
+
+  if (invoice.iss_aliquot > 0) {
+    y += 7;
+    doc.setTextColor("#dc2626");
+    doc.text(`ISS (${invoice.iss_aliquot}%):`, margin + 4, y);
+    doc.text(`- R$ ${formatCurrency(invoice.iss_value)}`, pageWidth - margin - 4, y, { align: "right" });
+    y += 7;
+    doc.setTextColor("#15803d");
+    doc.setFont(undefined, "bold");
+    doc.text("Valor líquido:", margin + 4, y);
+    doc.text(`R$ ${formatCurrency(invoice.net_value)}`, pageWidth - margin - 4, y, { align: "right" });
+    doc.setFont(undefined, "normal");
+  }
+  doc.setTextColor("#000000");
+  y += 14;
+
+  if (invoice.notes) {
+    doc.setFontSize(8);
+    doc.setTextColor("#6b7280");
+    doc.text("Observações", margin, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setTextColor("#374151");
+    const notesLines = doc.splitTextToSize(invoice.notes, pageWidth - margin * 2);
+    doc.text(notesLines, margin, y);
+    y += notesLines.length * 5 + 4;
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor("#9ca3af");
+  doc.text(`Comprovante emitido em ${format(new Date(), "dd/MM/yyyy HH:mm")}`, margin, doc.internal.pageSize.getHeight() - 12);
+
+  doc.save(`comprovante_${invoice.receipt_number}.pdf`);
+}
+
+function formatDateBR(iso) {
+  if (!iso) return "-";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }

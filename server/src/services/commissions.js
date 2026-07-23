@@ -45,3 +45,27 @@ export async function generateCommissionForAppointment(appointmentId) {
 
   return { success: true, commission, message: 'Comissão gerada com sucesso' };
 }
+
+// Quando um agendamento é corrigido para um status de "não aconteceu"
+// (no-show, ausência, cancelado) depois de já ter cobrança/comissão geradas
+// (ex.: tinha sido marcado 'completed' por engano), cancela essa cobrança e
+// remove a comissão pendente — pra não continuar contando como receita nem
+// gerar repasse por uma sessão que não ocorreu. Comissão já paga não é
+// mexida (fica pra acerto manual).
+export async function cancelFinancialsForAppointment(appointmentId, reason) {
+  const financialRecord = await prisma.financialRecord.findFirst({ where: { appointmentId } });
+  if (financialRecord && financialRecord.paymentStatus !== 'cancelled') {
+    await prisma.financialRecord.update({
+      where: { id: financialRecord.id },
+      data: {
+        paymentStatus: 'cancelled',
+        notes: [financialRecord.notes, `Cancelado automaticamente: ${reason}`].filter(Boolean).join(' — '),
+      },
+    });
+  }
+
+  const commission = await prisma.commission.findFirst({ where: { appointmentId } });
+  if (commission && commission.paymentStatus === 'pending') {
+    await prisma.commission.delete({ where: { id: commission.id } });
+  }
+}

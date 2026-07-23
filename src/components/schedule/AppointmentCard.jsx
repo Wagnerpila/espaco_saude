@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   X, Plus, FileText, BarChart2, MoreVertical,
   User, CheckSquare, HelpCircle, Monitor, Users, DollarSign,
-  RefreshCw, Trash2
+  RefreshCw, Trash2, Pencil
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -87,6 +87,11 @@ const STATUS_CIRCLES = [
   { key: "professional_absence", short: "AP", label: "Ausência Profissional",color: "bg-orange-500" },
   { key: "null_absence",         short: "AN", label: "Ausência Nula",        color: "bg-gray-400" }
 ];
+
+// Status em que a sessão não aconteceu (por qualquer motivo) — não deve ser
+// cobrada, e o caminho certo pra "resolver" é remarcar a mesma sessão em vez
+// de criar um agendamento novo (evita duplicidade na agenda e no financeiro).
+const NOT_HAPPENED_STATUSES = ["no_show", "justified_absence", "professional_absence", "null_absence", "cancelled"];
 
 export default function AppointmentCard({ appointment, patient, professional, room, onClose, onStatusChange, onEdit, onOpenEvolution, onDelete }) {
   const [loading, setLoading] = useState(false);
@@ -176,6 +181,9 @@ export default function AppointmentCard({ appointment, patient, professional, ro
           <Button variant="outline" size="icon" className="h-8 w-8">
             <BarChart2 className="w-4 h-4" />
           </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" title="Editar agendamento" onClick={() => onEdit && onEdit()}>
+            <Pencil className="w-4 h-4" />
+          </Button>
           <div className="relative ml-auto">
             <Button variant="outline" size="sm" className="h-8 text-xs flex gap-1" onClick={() => setShowStatusMenu(v => !v)}>
               <MoreVertical className="w-3 h-3" /> Ações
@@ -254,13 +262,19 @@ export default function AppointmentCard({ appointment, patient, professional, ro
             </p>
           </div>
 
-          {/* Remark button for absences */}
-          {(appointment.status === 'professional_absence' || appointment.status === 'justified_absence') && (
+          {/* Remarcar: sessão não aconteceu — reagenda o MESMO agendamento
+              (muda data/hora e volta o status pra "pending") em vez de criar
+              um novo, pra não duplicar na agenda nem gerar cobrança dobrada. */}
+          {NOT_HAPPENED_STATUSES.includes(appointment.status) && (
             <div className="flex items-center gap-3">
-              <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white h-8">
+              <Button
+                size="sm"
+                className="bg-red-500 hover:bg-red-600 text-white h-8"
+                onClick={() => onEdit && onEdit()}
+              >
                 <RefreshCw className="w-3 h-3 mr-1" /> Remarcar
               </Button>
-              <span className="text-xs text-gray-500">Prazo máximo para remarcar: 30 dias</span>
+              <span className="text-xs text-gray-500">Reagenda esta mesma sessão para outra data</span>
             </div>
           )}
 
@@ -350,13 +364,19 @@ export default function AppointmentCard({ appointment, patient, professional, ro
 
           {/* Footer button */}
           <div className="pt-2 border-t">
-            <Button
-              variant="outline"
-              className="w-full border-green-500 text-green-700 hover:bg-green-50"
-              onClick={() => setShowPayment(true)}
-            >
-              <DollarSign className="w-4 h-4 mr-2" /> Acessar Cobrança(s)
-            </Button>
+            {NOT_HAPPENED_STATUSES.includes(appointment.status) ? (
+              <p className="text-xs text-center text-gray-500 py-2">
+                Sessão não realizada — sem cobrança. Use "Remarcar" acima para reagendar.
+              </p>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full border-green-500 text-green-700 hover:bg-green-50"
+                onClick={() => setShowPayment(true)}
+              >
+                <DollarSign className="w-4 h-4 mr-2" /> Acessar Cobrança(s)
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Printer, CheckCircle, Receipt } from "lucide-react";
+import { FileText, FileDown, CheckCircle, Receipt } from "lucide-react";
+import { exportReceiptToPdf } from "@/utils/financialExport";
 
 function formatDateBR(iso) {
   if (!iso) return '';
@@ -85,7 +86,7 @@ export default function InvoiceEmission({ patients, professionals, transactions 
   };
 
   const handlePrint = () => {
-    window.print();
+    if (invoice) exportReceiptToPdf(invoice);
   };
 
   return (
@@ -209,7 +210,7 @@ export default function InvoiceEmission({ patients, professionals, transactions 
             </CardTitle>
             {invoice && (
               <Button variant="outline" size="sm" onClick={handlePrint} className="gap-1">
-                <Printer className="w-4 h-4" /> Imprimir
+                <FileDown className="w-4 h-4" /> Baixar PDF
               </Button>
             )}
           </div>

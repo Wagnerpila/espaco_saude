@@ -4,7 +4,7 @@ import { getEntityConfig } from '../entityMap.js';
 import { requireAuth } from '../middleware/auth.js';
 import { loadPermissions } from '../middleware/rbac.js';
 import { requestToPrisma, prismaToResponse } from '../utils/case.js';
-import { generateCommissionForAppointment } from '../services/commissions.js';
+import { generateCommissionForAppointment, cancelFinancialsForAppointment } from '../services/commissions.js';
 import { incrementPackageSessionsForAppointment } from '../services/packages.js';
 import { sendPaymentReceiptWhatsApp } from '../services/receipts.js';
 import { sendAppointmentConfirmationWhatsApp } from '../services/appointmentNotifications.js';
@@ -17,10 +17,28 @@ export const entitiesRouter = Router();
 // Aqui religamos explicitamente os mesmos gatilhos para quem edita as
 // entidades diretamente pelo painel (fora das rotas dedicadas em
 // functions.routes.js, que já disparam isso sozinhas quando fazem sentido).
+// Status em que a sessão não aconteceu, por qualquer motivo — nunca deve
+// gerar/manter cobrança ou comissão.
+const NOT_HAPPENED_STATUSES = ['no_show', 'justified_absence', 'professional_absence', 'null_absence', 'cancelled'];
+const NOT_HAPPENED_LABELS = {
+  no_show: 'não compareceu',
+  justified_absence: 'ausência justificada',
+  professional_absence: 'ausência do profissional',
+  null_absence: 'ausência nula',
+  cancelled: 'cancelado',
+};
+
 async function fireEntityTriggers(entityName, before, after) {
   if (entityName === 'Appointment' && after.status === 'completed' && before?.status !== 'completed') {
     await generateCommissionForAppointment(after.id);
     await incrementPackageSessionsForAppointment(after);
+  }
+  if (
+    entityName === 'Appointment' &&
+    NOT_HAPPENED_STATUSES.includes(after.status) &&
+    before?.status !== after.status
+  ) {
+    await cancelFinancialsForAppointment(after.id, NOT_HAPPENED_LABELS[after.status] || after.status);
   }
   if (entityName === 'Appointment' && after.status === 'confirmed' && before?.status !== 'confirmed') {
     await sendAppointmentConfirmationWhatsApp(after);
