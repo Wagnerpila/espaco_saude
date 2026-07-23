@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FinancialRecord, Patient, Professional } from "@/entities/all";
+import { FinancialRecord, Patient, Professional, Appointment } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,7 @@ export default function FinancialPage() {
   const [transactions, setTransactions] = useState([]);
   const [patients, setPatients] = useState([]);
   const [professionals, setProfessionals] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,14 +32,16 @@ export default function FinancialPage() {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [t, p, pr] = await Promise.all([
+    const [t, p, pr, a] = await Promise.all([
       FinancialRecord.list("-transaction_date"),
       Patient.list(),
-      Professional.list()
+      Professional.list(),
+      Appointment.list()
     ]);
     setTransactions(t);
     setPatients(p);
     setProfessionals(pr);
+    setAppointments(a);
     setIsLoading(false);
   };
 
@@ -97,7 +100,7 @@ export default function FinancialPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals, professionalFilter)}
+              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals, professionalFilter, appointments)}
               className="gap-1"
             >
               <FileDown className="w-4 h-4" /> Relatório do Dia (PDF)
@@ -145,6 +148,7 @@ export default function FinancialPage() {
               transactions={transactions}
               patients={patients}
               professionals={professionals}
+              appointments={appointments}
               isLoading={isLoading}
               onEdit={(t) => { setEditingTransaction(t); setShowForm(true); }}
               onDelete={async (id) => { await FinancialRecord.delete(id); loadData(); }}

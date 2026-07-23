@@ -39,10 +39,58 @@ function isClinicOwner(professional) {
   return professional?.default_commission_percentage === 100;
 }
 
+// Status do agendamento em que a sessão não aconteceu — quando encontramos
+// um desses vinculados a uma receita ainda "pending", mostramos esse motivo
+// no lugar de "Pendente" (ver getAttendanceStatus).
+const APPOINTMENT_STATUS_LABELS = {
+  no_show: "Não Compareceu",
+  justified_absence: "Ausência Justificada",
+  professional_absence: "Ausência Profissional",
+  null_absence: "Ausência Nula",
+  cancelled: "Agend. Cancelado",
+};
+
+export const ATTENDANCE_COLORS = {
+  no_show: { bg: "#fee2e2", text: "#b91c1c", badge: "bg-red-100 text-red-700" },
+  justified_absence: { bg: "#ede9fe", text: "#6d28d9", badge: "bg-purple-100 text-purple-700" },
+  professional_absence: { bg: "#ffedd5", text: "#c2410c", badge: "bg-orange-100 text-orange-700" },
+  null_absence: { bg: "#f3f4f6", text: "#4b5563", badge: "bg-gray-100 text-gray-600" },
+  cancelled: { bg: "#fee2e2", text: "#b91c1c", badge: "bg-red-100 text-red-700" },
+  scheduled: { bg: "#dbeafe", text: "#1d4ed8", badge: "bg-blue-100 text-blue-700" },
+};
+
+// Uma receita "pending" só deveria significar "atendimento confirmado, ainda
+// não pago". Se o agendamento vinculado mostra que a sessão não aconteceu
+// (não compareceu/ausência/cancelado) ou ainda nem aconteceu (agendado pro
+// futuro), este status substitui o "Pendente" genérico na exibição.
+// Casamento: appointment_id direto quando existe, senão paciente + data
+// (cobre faturas de pacote, que não têm appointment_id salvo).
+export function getAttendanceStatus(transaction, appointments = []) {
+  if (transaction.type !== "income" || transaction.payment_status !== "pending") return null;
+
+  let appt = transaction.appointment_id
+    ? appointments.find((a) => a.id === transaction.appointment_id)
+    : null;
+  if (!appt) {
+    appt = appointments.find(
+      (a) => a.patient_id === transaction.patient_id && a.appointment_date === transaction.transaction_date
+    );
+  }
+  if (!appt) return null;
+
+  if (APPOINTMENT_STATUS_LABELS[appt.status]) {
+    return { key: appt.status, label: APPOINTMENT_STATUS_LABELS[appt.status] };
+  }
+  if (appt.status === "pending" || appt.status === "confirmed") {
+    return { key: "scheduled", label: "Agendado" };
+  }
+  return null;
+}
+
 // Gera um PDF com todas as transações financeiras (receitas e despesas) de um
 // dia específico, com os mesmos totais exibidos na tela de Financeiro —
 // pra imprimir e fechar o caixa do dia.
-export function exportDailyFinancialReportToPdf(dateStr, transactions, patients, professionals, professionalId) {
+export function exportDailyFinancialReportToPdf(dateStr, transactions, patients, professionals, professionalId, appointments = []) {
   const dayTransactions = transactions
     .filter((t) => t.transaction_date === dateStr)
     .filter((t) => !professionalId || professionalId === "all" || t.professional_id === professionalId)
@@ -100,10 +148,17 @@ export function exportDailyFinancialReportToPdf(dateStr, transactions, patients,
     }
     const professional = professionals.find((p) => p.id === t.professional_id);
     const hasCommission = t.type === "income" && t.payment_status !== "cancelled" && professional?.default_commission_percentage > 0 && !isClinicOwner(professional);
+    const attendance = getAttendanceStatus(t, appointments);
 
     doc.text(truncate(t.description, COLUMNS[0].maxChars), COLUMNS[0].x, y);
     doc.text(truncate(professional?.full_name, COLUMNS[1].maxChars), COLUMNS[1].x, y);
-    doc.text(STATUS_LABELS[t.payment_status] || t.payment_status || "-", COLUMNS[2].x, y);
+    if (attendance) {
+      doc.setTextColor(ATTENDANCE_COLORS[attendance.key]?.text || "#000000");
+      doc.text(attendance.label, COLUMNS[2].x, y);
+      doc.setTextColor("#000000");
+    } else {
+      doc.text(STATUS_LABELS[t.payment_status] || t.payment_status || "-", COLUMNS[2].x, y);
+    }
 
     // Valor a receber: quando a receita está vinculada a um profissional com
     // comissão cadastrada, mostra o valor final dele (já com o % aplicado),

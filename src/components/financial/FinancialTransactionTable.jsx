@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2, X } from "lucide-react";
+import { getAttendanceStatus, ATTENDANCE_COLORS } from "@/utils/financialExport";
 
 function formatDateBR(iso) {
   if (!iso) return '-';
@@ -33,7 +34,7 @@ function isClinicOwner(professional) {
 }
 
 export default function FinancialTransactionTable({
-  transactions, patients, professionals, isLoading, onEdit, onDelete, onConfirmPayment,
+  transactions, patients, professionals, appointments = [], isLoading, onEdit, onDelete, onConfirmPayment,
   professionalFilter, onProfessionalFilterChange,
 }) {
   const [search, setSearch] = useState("");
@@ -158,6 +159,8 @@ export default function FinancialTransactionTable({
               const prof = getProfessional(t.professional_id);
               const hasCommission = t.type === 'income' && t.payment_status !== 'cancelled' && prof?.default_commission_percentage > 0 && !isClinicOwner(prof);
               const commission = hasCommission ? calcCommission(t.amount, prof) : 0;
+              const attendance = getAttendanceStatus(t, appointments);
+              const attendanceColor = attendance ? ATTENDANCE_COLORS[attendance.key]?.badge : null;
               return (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   {/* Icon */}
@@ -177,9 +180,11 @@ export default function FinancialTransactionTable({
                     </div>
                   </div>
 
-                  {/* Status badge */}
-                  <Badge className={`text-xs ${STATUS_COLORS[t.payment_status] || 'bg-gray-100 text-gray-500'}`}>
-                    {t.payment_status === 'paid' ? 'Pago' : t.payment_status === 'pending' ? 'Pendente' : 'Cancelado'}
+                  {/* Status badge — quando há agendamento vinculado, mostra a
+                      situação real da sessão (não compareceu/ausência/
+                      agendado) no lugar de "Pendente" genérico */}
+                  <Badge className={`text-xs ${attendanceColor || STATUS_COLORS[t.payment_status] || 'bg-gray-100 text-gray-500'}`}>
+                    {attendance ? attendance.label : (t.payment_status === 'paid' ? 'Pago' : t.payment_status === 'pending' ? 'Pendente' : 'Cancelado')}
                   </Badge>
 
                   {/* Value */}
@@ -196,7 +201,7 @@ export default function FinancialTransactionTable({
 
                   {/* Actions */}
                   <div className="flex gap-1 flex-shrink-0">
-                    {t.payment_status === 'pending' && onConfirmPayment && (
+                    {t.payment_status === 'pending' && !attendance && onConfirmPayment && (
                       <Button
                         variant="ghost"
                         size="icon"
