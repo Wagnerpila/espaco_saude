@@ -4,8 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2, X } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, Edit, Trash2, Search, Receipt, CheckCircle2, X, Banknote, Smartphone, CreditCard, Building2 } from "lucide-react";
 import { getAttendanceStatus, ATTENDANCE_COLORS } from "@/utils/financialExport";
+
+const PAYMENT_METHODS = [
+  { key: "pix", label: "PIX", icon: Smartphone },
+  { key: "cash", label: "Dinheiro", icon: Banknote },
+  { key: "card", label: "Cartão", icon: CreditCard },
+  { key: "bank_transfer", label: "Transferência", icon: Building2 },
+];
 
 function formatDateBR(iso) {
   if (!iso) return '-';
@@ -54,6 +61,8 @@ export default function FinancialTransactionTable({
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterDay, setFilterDay] = useState("");
   const [filterAttendance, setFilterAttendance] = useState("all");
+  const [confirmingTx, setConfirmingTx] = useState(null);
+  const [confirmMethod, setConfirmMethod] = useState("pix");
   const filterProfessional = professionalFilter ?? "all";
   const setFilterProfessional = onProfessionalFilterChange ?? (() => {});
 
@@ -227,7 +236,10 @@ export default function FinancialTransactionTable({
                         size="icon"
                         className="h-7 w-7"
                         title="Confirmar pagamento"
-                        onClick={() => { if (confirm(`Confirmar pagamento de R$ ${t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}?`)) onConfirmPayment(t); }}
+                        onClick={() => {
+                          setConfirmMethod(t.payment_method && t.payment_method !== 'pending' ? t.payment_method : 'pix');
+                          setConfirmingTx(t);
+                        }}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
                       </Button>
@@ -245,6 +257,57 @@ export default function FinancialTransactionTable({
           </div>
         )}
       </CardContent>
+
+      {confirmingTx && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setConfirmingTx(null)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b dark:border-gray-800">
+              <h2 className="font-bold text-gray-900 dark:text-white text-lg">Confirmar Pagamento</h2>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConfirmingTx(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{confirmingTx.description || '—'}</p>
+                <p className="text-lg font-bold text-green-600 mt-1">
+                  R$ {confirmingTx.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-400 uppercase font-medium block mb-2">Forma de Pagamento</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYMENT_METHODS.map(m => {
+                    const Icon = m.icon;
+                    return (
+                      <button
+                        key={m.key}
+                        onClick={() => setConfirmMethod(m.key)}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all
+                          ${confirmMethod === m.key ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-gray-300'}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {m.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold h-11"
+                onClick={() => {
+                  onConfirmPayment(confirmingTx, confirmMethod);
+                  setConfirmingTx(null);
+                }}
+              >
+                Confirmar Pagamento
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

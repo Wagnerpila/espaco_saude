@@ -61,18 +61,17 @@ export default function FinancialPage() {
     }
   };
 
-  const handleConfirmPayment = async (transaction) => {
+  const handleConfirmPayment = async (transaction, method) => {
     try {
       // Faturas automáticas de pacote nascem com payment_method "pending"
-      // (placeholder, não é um método de pagamento de verdade) — sem esse
-      // fallback, o comprovante saía com "Pagamento: Pendente" numa
-      // transação já marcada como paga.
-      const method = transaction.payment_method && transaction.payment_method !== "pending"
-        ? transaction.payment_method
-        : "cash";
+      // (placeholder, não é um método de pagamento de verdade) — o seletor
+      // na tabela sempre manda um método real; esse fallback só cobre quem
+      // ainda chama sem escolher (ex.: chamada programática antiga).
+      const paymentMethod = method
+        || (transaction.payment_method && transaction.payment_method !== "pending" ? transaction.payment_method : "cash");
       await confirmPayment({
         transactionId: transaction.id,
-        paymentMethod: method,
+        paymentMethod,
       });
       toast.success("Pagamento confirmado!");
       loadData();
