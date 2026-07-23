@@ -29,7 +29,12 @@ export async function sendPaymentReceiptWhatsApp(financialRecord) {
 
   const gross = Number(financialRecord.amount || 0);
   const receiptNumber = `REC-${Date.now().toString().slice(-8)}`;
-  const paymentLabel = METHOD_LABELS[financialRecord.paymentMethod] || financialRecord.paymentMethod || 'Não informado';
+  // "pending" é placeholder de fatura ainda não paga — nunca deveria aparecer
+  // num comprovante de pagamento já confirmado (contraditório: "pago" +
+  // "pendente" na mesma mensagem).
+  const paymentLabel = financialRecord.paymentMethod && financialRecord.paymentMethod !== 'pending'
+    ? (METHOD_LABELS[financialRecord.paymentMethod] || financialRecord.paymentMethod)
+    : 'Não informado';
 
   const t = await loadMessageRenderer();
   const message = t('PAYMENT_RECEIPT', {

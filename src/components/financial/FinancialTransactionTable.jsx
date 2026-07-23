@@ -33,6 +33,17 @@ function isClinicOwner(professional) {
   return professional?.default_commission_percentage === 100;
 }
 
+const ATTENDANCE_FILTER_OPTIONS = [
+  { value: "all", label: "Todos" },
+  { value: "attended", label: "Compareceu" },
+  { value: "scheduled", label: "Agendado" },
+  { value: "no_show", label: "Não Compareceu" },
+  { value: "justified_absence", label: "Ausência Justificada" },
+  { value: "professional_absence", label: "Ausência Profissional" },
+  { value: "null_absence", label: "Ausência Nula" },
+  { value: "cancelled", label: "Agend. Cancelado" },
+];
+
 export default function FinancialTransactionTable({
   transactions, patients, professionals, appointments = [], isLoading, onEdit, onDelete, onConfirmPayment,
   professionalFilter, onProfessionalFilterChange,
@@ -42,6 +53,7 @@ export default function FinancialTransactionTable({
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterDay, setFilterDay] = useState("");
+  const [filterAttendance, setFilterAttendance] = useState("all");
   const filterProfessional = professionalFilter ?? "all";
   const setFilterProfessional = onProfessionalFilterChange ?? (() => {});
 
@@ -63,7 +75,9 @@ export default function FinancialTransactionTable({
     const matchMonth = filterMonth === "all" || t.transaction_date?.startsWith(filterMonth);
     const matchDay = !filterDay || t.transaction_date === filterDay;
     const matchProfessional = filterProfessional === "all" || t.professional_id === filterProfessional;
-    return matchSearch && matchType && matchStatus && matchMonth && matchDay && matchProfessional;
+    const attendanceKey = getAttendanceStatus(t, appointments)?.key || "attended";
+    const matchAttendance = filterAttendance === "all" || attendanceKey === filterAttendance;
+    return matchSearch && matchType && matchStatus && matchMonth && matchDay && matchProfessional && matchAttendance;
   });
 
   // Cancelado (sessão que não aconteceu) nunca soma nos totais — só aparece
@@ -127,6 +141,12 @@ export default function FinancialTransactionTable({
                 <SelectItem value="paid">Pago</SelectItem>
                 <SelectItem value="pending">Pendente</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterAttendance} onValueChange={setFilterAttendance}>
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Comparecimento" /></SelectTrigger>
+              <SelectContent>
+                {ATTENDANCE_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filterProfessional} onValueChange={setFilterProfessional}>

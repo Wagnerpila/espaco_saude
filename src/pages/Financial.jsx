@@ -63,9 +63,16 @@ export default function FinancialPage() {
 
   const handleConfirmPayment = async (transaction) => {
     try {
+      // Faturas automáticas de pacote nascem com payment_method "pending"
+      // (placeholder, não é um método de pagamento de verdade) — sem esse
+      // fallback, o comprovante saía com "Pagamento: Pendente" numa
+      // transação já marcada como paga.
+      const method = transaction.payment_method && transaction.payment_method !== "pending"
+        ? transaction.payment_method
+        : "cash";
       await confirmPayment({
         transactionId: transaction.id,
-        paymentMethod: transaction.payment_method || "cash",
+        paymentMethod: method,
       });
       toast.success("Pagamento confirmado!");
       loadData();
