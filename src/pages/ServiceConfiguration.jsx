@@ -329,6 +329,36 @@ export default function ServiceConfiguration() {
                         />
                       </div>
 
+                      <div>
+                        <Label>Profissional(is) Habilitado(s)</Label>
+                        <p className="text-xs text-gray-500 mb-2">
+                          Se marcar algum profissional aqui, ele fica pré-selecionado e travado ao criar
+                          um pacote deste plano (evita cadastrar a cobrança no nome errado). Deixe em
+                          branco se qualquer profissional pode atender este serviço.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                          {professionals.map((prof) => {
+                            const checked = (planForm.available_professionals || []).includes(prof.id);
+                            return (
+                              <label key={prof.id} className="flex items-center gap-2 text-sm bg-white border rounded-lg px-3 py-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const current = planForm.available_professionals || [];
+                                    const next = e.target.checked
+                                      ? [...current, prof.id]
+                                      : current.filter(id => id !== prof.id);
+                                    setPlanForm({ ...planForm, available_professionals: next });
+                                  }}
+                                />
+                                {prof.full_name}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <Switch
@@ -399,6 +429,14 @@ export default function ServiceConfiguration() {
                             </div>
                             {plan.description && (
                               <p className="text-sm text-gray-500 mt-2">{plan.description}</p>
+                            )}
+                            {plan.available_professionals?.length > 0 && (
+                              <p className="text-xs text-purple-700 mt-2">
+                                Profissional fixo: {plan.available_professionals
+                                  .map(id => professionals.find(p => p.id === id)?.full_name)
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </p>
                             )}
                           </div>
                           <div className="flex gap-2 ml-4">

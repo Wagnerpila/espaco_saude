@@ -70,20 +70,22 @@ export default function SingleServiceForm({
     const plan = servicePlans.find(p => p.id === planId);
     if (plan) {
       setSelectedPlan(plan);
-      
+
       const finalValue = calculateFinalValue(
         plan.default_value || 0,
         0,
         0,
         false
       );
-      
+
       setFormData({
         ...formData,
         plan_name: plan.plan_name,
         service_type: plan.plan_name,
         plan_value: plan.default_value || 0,
-        professional_id: plan.available_professionals?.[0] || "",
+        // Se o plano já tem profissional(is) designado(s), preenche e trava
+        // (ver Select abaixo) — evita cadastrar a cobrança no nome errado.
+        professional_id: plan.available_professionals?.[0] || formData.professional_id,
         notes: plan.notes || "",
         discount_percentage: 0,
         discount_amount: 0,
@@ -92,7 +94,13 @@ export default function SingleServiceForm({
     }
   };
 
+  const professionalLocked = selectedPlan?.available_professionals?.length > 0;
+
   const handleSubmit = () => {
+    if (!formData.plan_name || !formData.professional_id) {
+      alert("Preencha o nome do serviço e selecione o profissional responsável.");
+      return;
+    }
     // service_type/payment_method não são colunas do ServicePackage — o tipo
     // de serviço vai resumido em notes; payment_method não é usado aqui (a
     // fatura automática em PatientDetails.jsx já fixa "pending").
@@ -254,6 +262,7 @@ export default function SingleServiceForm({
             <Select
               value={formData.professional_id}
               onValueChange={(value) => setFormData({ ...formData, professional_id: value })}
+              disabled={professionalLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o profissional" />
@@ -266,6 +275,11 @@ export default function SingleServiceForm({
                 ))}
               </SelectContent>
             </Select>
+            {professionalLocked && (
+              <p className="text-xs text-purple-600 mt-1">
+                Definido pelo plano "{selectedPlan.plan_name}" — não pode ser alterado aqui.
+              </p>
+            )}
           </div>
 
           <div>

@@ -75,7 +75,9 @@ export default function PersonalizedPackageForm({
       setFormData({
         ...formData,
         plan_name: plan.plan_name,
-        professional_id: plan.available_professionals?.[0] || "",
+        // Se o plano já tem profissional(is) designado(s), preenche e trava
+        // (ver Select abaixo) — evita cadastrar a cobrança no nome errado.
+        professional_id: plan.available_professionals?.[0] || formData.professional_id,
         notes: plan.notes || "",
         sessions: [
           { service_type: plan.plan_name, quantity: plan.sessions_per_cycle || 1, unit_price: plan.default_value || 0 }
@@ -84,7 +86,13 @@ export default function PersonalizedPackageForm({
     }
   };
 
+  const professionalLocked = selectedPlan?.available_professionals?.length > 0;
+
   const handleSubmit = () => {
+    if (!formData.plan_name || !formData.professional_id) {
+      alert("Preencha o nome do plano e selecione o profissional responsável.");
+      return;
+    }
     const total = calculateTotal();
     const totalSessions = formData.sessions.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
     // ServicePackage não tem uma coluna pra guardar a lista detalhada de
@@ -273,6 +281,7 @@ export default function PersonalizedPackageForm({
             <Select
               value={formData.professional_id}
               onValueChange={(value) => setFormData({ ...formData, professional_id: value })}
+              disabled={professionalLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o profissional" />
@@ -285,6 +294,11 @@ export default function PersonalizedPackageForm({
                 ))}
               </SelectContent>
             </Select>
+            {professionalLocked && (
+              <p className="text-xs text-purple-600 mt-1">
+                Definido pelo plano "{selectedPlan.plan_name}" — não pode ser alterado aqui.
+              </p>
+            )}
           </div>
 
           <div>

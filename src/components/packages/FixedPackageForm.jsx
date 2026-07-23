@@ -105,7 +105,9 @@ export default function FixedPackageForm({
         plan_name: plan.plan_name,
         total_sessions: plan.sessions_per_cycle || 10,
         plan_value: plan.default_value || 0,
-        professional_id: plan.available_professionals?.[0] || "",
+        // Se o plano já tem profissional(is) designado(s), preenche e trava
+        // (ver Select abaixo) — evita cadastrar a cobrança no nome errado.
+        professional_id: plan.available_professionals?.[0] || formData.professional_id,
         notes: plan.notes || "",
         discount_percentage: 0,
         discount_amount: 0,
@@ -113,6 +115,8 @@ export default function FixedPackageForm({
       });
     }
   };
+
+  const professionalLocked = selectedPlan?.available_professionals?.length > 0;
 
   const handleDayToggle = (day) => {
     setFixedDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
@@ -347,6 +351,7 @@ export default function FixedPackageForm({
             <Select
               value={formData.professional_id}
               onValueChange={(value) => setFormData({ ...formData, professional_id: value })}
+              disabled={professionalLocked}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Selecione o profissional" />
@@ -359,6 +364,11 @@ export default function FixedPackageForm({
                 ))}
               </SelectContent>
             </Select>
+            {professionalLocked && (
+              <p className="text-xs text-purple-600 mt-1">
+                Definido pelo plano "{selectedPlan.plan_name}" — não pode ser alterado aqui.
+              </p>
+            )}
           </div>
 
           <div>
