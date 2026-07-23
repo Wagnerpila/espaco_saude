@@ -39,6 +39,7 @@ export default function FinancialTransactionTable({ transactions, patients, prof
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
+  const [filterProfessional, setFilterProfessional] = useState("all");
 
   const getPatient = (id) => patients.find(p => p.id === id);
   const getProfessional = (id) => professionals.find(p => p.id === id);
@@ -56,7 +57,8 @@ export default function FinancialTransactionTable({ transactions, patients, prof
     const matchType = filterType === "all" || t.type === filterType;
     const matchStatus = filterStatus === "all" || t.payment_status === filterStatus;
     const matchMonth = filterMonth === "all" || t.transaction_date?.startsWith(filterMonth);
-    return matchSearch && matchType && matchStatus && matchMonth;
+    const matchProfessional = filterProfessional === "all" || t.professional_id === filterProfessional;
+    return matchSearch && matchType && matchStatus && matchMonth && matchProfessional;
   });
 
   const totalIncome = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -99,6 +101,13 @@ export default function FinancialTransactionTable({ transactions, patients, prof
                 <SelectItem value="paid">Pago</SelectItem>
                 <SelectItem value="pending">Pendente</SelectItem>
                 <SelectItem value="cancelled">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filterProfessional} onValueChange={setFilterProfessional}>
+              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Profissional" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os profissionais</SelectItem>
+                {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

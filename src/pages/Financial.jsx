@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { FinancialRecord, Patient, Professional } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, RefreshCw, FileDown } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ export default function FinancialPage() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportProfessional, setReportProfessional] = useState("all");
 
   useEffect(() => { loadData(); }, []);
 
@@ -86,10 +88,17 @@ export default function FinancialPage() {
               onChange={(e) => setReportDate(e.target.value)}
               className="h-8 w-40 text-sm"
             />
+            <Select value={reportProfessional} onValueChange={setReportProfessional}>
+              <SelectTrigger className="h-8 w-44 text-sm"><SelectValue placeholder="Profissional" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os profissionais</SelectItem>
+                {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals)}
+              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals, reportProfessional)}
               className="gap-1"
             >
               <FileDown className="w-4 h-4" /> Relatório do Dia (PDF)
