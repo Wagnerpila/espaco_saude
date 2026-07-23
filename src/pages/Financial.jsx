@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { FinancialRecord, Patient, Professional } from "@/entities/all";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, RefreshCw, FileDown } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +23,9 @@ export default function FinancialPage() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reportProfessional, setReportProfessional] = useState("all");
+  // Compartilhado entre o filtro da tabela de Transações e o Relatório do
+  // Dia (PDF) — filtrar por profissional num lugar reflete no outro.
+  const [professionalFilter, setProfessionalFilter] = useState("all");
 
   useEffect(() => { loadData(); }, []);
 
@@ -82,23 +83,21 @@ export default function FinancialPage() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Controle completo de receitas, despesas e relatórios</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {professionalFilter !== "all" && (
+              <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-1 rounded-full">
+                Filtrando: {professionals.find(p => p.id === professionalFilter)?.full_name || "profissional"}
+              </span>
+            )}
             <Input
               type="date"
               value={reportDate}
               onChange={(e) => setReportDate(e.target.value)}
               className="h-8 w-40 text-sm"
             />
-            <Select value={reportProfessional} onValueChange={setReportProfessional}>
-              <SelectTrigger className="h-8 w-44 text-sm"><SelectValue placeholder="Profissional" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os profissionais</SelectItem>
-                {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals, reportProfessional)}
+              onClick={() => exportDailyFinancialReportToPdf(reportDate, transactions, patients, professionals, professionalFilter)}
               className="gap-1"
             >
               <FileDown className="w-4 h-4" /> Relatório do Dia (PDF)
@@ -112,8 +111,8 @@ export default function FinancialPage() {
           </div>
         </div>
 
-        {/* Summary Bar (Receitas / Despesas / Saldo) */}
-        <FinancialSummaryBar transactions={transactions} isLoading={isLoading} />
+        {/* Summary Bar (Receitas / Despesas / Saldo / Comissão) */}
+        <FinancialSummaryBar transactions={transactions} professionals={professionals} isLoading={isLoading} />
 
         {/* Form Modal */}
         {showForm && (
@@ -145,6 +144,8 @@ export default function FinancialPage() {
               onEdit={(t) => { setEditingTransaction(t); setShowForm(true); }}
               onDelete={async (id) => { await FinancialRecord.delete(id); loadData(); }}
               onConfirmPayment={handleConfirmPayment}
+              professionalFilter={professionalFilter}
+              onProfessionalFilterChange={setProfessionalFilter}
             />
           </TabsContent>
 

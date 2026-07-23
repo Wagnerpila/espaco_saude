@@ -34,12 +34,24 @@ const STATUS_COLORS = {
   cancelled: "bg-gray-100 text-gray-500",
 };
 
-export default function FinancialTransactionTable({ transactions, patients, professionals, isLoading, onEdit, onDelete, onConfirmPayment }) {
+// Comissão do profissional sobre uma receita: valor x percentual cadastrado
+// no profissional (mesma regra do relatório PDF e do PaymentModal).
+function calcCommission(amount, professional) {
+  const percentage = professional?.default_commission_percentage || 0;
+  if (!percentage) return 0;
+  return ((amount || 0) * percentage) / 100;
+}
+
+export default function FinancialTransactionTable({
+  transactions, patients, professionals, isLoading, onEdit, onDelete, onConfirmPayment,
+  professionalFilter, onProfessionalFilterChange,
+}) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
-  const [filterProfessional, setFilterProfessional] = useState("all");
+  const filterProfessional = professionalFilter ?? "all";
+  const setFilterProfessional = onProfessionalFilterChange ?? (() => {});
 
   const getPatient = (id) => patients.find(p => p.id === id);
   const getProfessional = (id) => professionals.find(p => p.id === id);
@@ -131,6 +143,8 @@ export default function FinancialTransactionTable({ transactions, patients, prof
             {filtered.map(t => {
               const pat = getPatient(t.patient_id);
               const prof = getProfessional(t.professional_id);
+              const hasCommission = t.type === 'income' && prof?.default_commission_percentage > 0;
+              const commission = hasCommission ? calcCommission(t.amount, prof) : 0;
               return (
                 <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   {/* Icon */}
@@ -161,9 +175,16 @@ export default function FinancialTransactionTable({ transactions, patients, prof
                   </Badge>
 
                   {/* Value */}
-                  <span className={`text-sm font-bold w-28 text-right flex-shrink-0 ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                    {t.type === 'income' ? '+' : '-'} R$ {t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
+                  <div className="w-32 text-right flex-shrink-0">
+                    <span className={`text-sm font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
+                      {t.type === 'income' ? '+' : '-'} R$ {t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                    {hasCommission && (
+                      <p className="text-xs text-purple-600 dark:text-purple-400">
+                        Comissão: R$ {commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({prof.default_commission_percentage}%)
+                      </p>
+                    )}
+                  </div>
 
                   {/* Actions */}
                   <div className="flex gap-1 flex-shrink-0">

@@ -1,10 +1,18 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Wallet, BarChart2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, BarChart2, HandCoins } from "lucide-react";
 
 function fmt(v) { return `R$ ${Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`; }
 
-export default function FinancialSummaryBar({ transactions, isLoading }) {
+// Comissão do profissional sobre uma receita: valor x percentual cadastrado
+// no profissional (mesma regra usada no relatório PDF e no PaymentModal).
+function calcCommission(amount, professional) {
+  const percentage = professional?.default_commission_percentage || 0;
+  if (!percentage) return 0;
+  return ((amount || 0) * percentage) / 100;
+}
+
+export default function FinancialSummaryBar({ transactions, professionals = [], isLoading }) {
   const now = new Date();
   const thisMonth = transactions.filter(t => {
     const d = t.transaction_date?.slice(0, 7);
@@ -16,21 +24,29 @@ export default function FinancialSummaryBar({ transactions, isLoading }) {
   const balance = income - expenses;
   const pending = transactions.filter(t => t.payment_status === 'pending' && t.type === 'income').reduce((s, t) => s + t.amount, 0);
 
+  const commissionPaid = thisMonth
+    .filter(t => t.type === 'income' && t.payment_status === 'paid')
+    .reduce((s, t) => {
+      const professional = professionals.find(p => p.id === t.professional_id);
+      return s + calcCommission(t.amount, professional);
+    }, 0);
+
   const cards = [
     { label: "Receitas este mês", value: income, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50 dark:bg-green-900/20", border: "border-green-200" },
     { label: "Despesas este mês", value: expenses, icon: TrendingDown, color: "text-red-500", bg: "bg-red-50 dark:bg-red-900/20", border: "border-red-200" },
     { label: "Saldo do mês", value: balance, icon: Wallet, color: balance >= 0 ? "text-blue-600" : "text-red-600", bg: "bg-blue-50 dark:bg-blue-900/20", border: "border-blue-200" },
     { label: "A receber (pendente)", value: pending, icon: BarChart2, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-900/20", border: "border-orange-200" },
+    { label: "Comissão paga (mês)", value: commissionPaid, icon: HandCoins, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", border: "border-purple-200" },
   ];
 
   if (isLoading) return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />)}
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />)}
     </div>
   );
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {cards.map((c, i) => (
         <Card key={i} className={`border ${c.border} ${c.bg} shadow-sm`}>
           <CardContent className="p-4 flex items-center gap-3">
