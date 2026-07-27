@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   X, Plus, FileText, BarChart2, MoreVertical,
   User, CheckSquare, HelpCircle, Monitor, Users, DollarSign,
-  RefreshCw, Trash2, Pencil
+  RefreshCw, Trash2, Pencil, MessageCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Appointment as AppointmentEntity } from "@/entities/all";
+import { Appointment as AppointmentEntity, Notification as NotificationEntity } from "@/entities/all";
+import { sendProfessionalAbsenceNotification } from "@/functions/appointmentNotifications";
 import PaymentModal from "./PaymentModal";
 
 const STATUS_CONFIG = {
@@ -100,9 +101,43 @@ export default function AppointmentCard({ appointment, patient, professional, ro
   const [pendingStatus, setPendingStatus] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [absenceNotified, setAbsenceNotified] = useState(null); // null = verificando, true/false = resultado
+  const [sendingAbsence, setSendingAbsence] = useState(false);
 
   const currentStatus = pendingStatus || appointment.status;
   const config = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.pending;
+
+  // Verifica se o aviso de ausência do profissional já foi enviado por
+  // WhatsApp pra este agendamento (ver Notification criada em
+  // server/src/services/appointmentNotifications.js ao enviar).
+  useEffect(() => {
+    if (appointment.status !== 'professional_absence') {
+      setAbsenceNotified(null);
+      return;
+    }
+    let cancelled = false;
+    setAbsenceNotified(null);
+    NotificationEntity.filter({ appointment_id: appointment.id, type: 'professional_absence_notification' })
+      .then((list) => { if (!cancelled) setAbsenceNotified(Array.isArray(list) && list.length > 0); })
+      .catch(() => { if (!cancelled) setAbsenceNotified(false); });
+    return () => { cancelled = true; };
+  }, [appointment.id, appointment.status]);
+
+  const handleSendAbsenceNotification = async () => {
+    setSendingAbsence(true);
+    try {
+      const { data } = await sendProfessionalAbsenceNotification(appointment.id);
+      if (data?.success) {
+        setAbsenceNotified(true);
+      } else {
+        alert(data?.reason || "Não foi possível enviar o aviso (paciente sem telefone cadastrado?).");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao enviar o aviso por WhatsApp.");
+    }
+    setSendingAbsence(false);
+  };
 
   const handleSelectStatus = (newStatus) => {
     setShowStatusMenu(false);
@@ -315,6 +350,37 @@ export default function AppointmentCard({ appointment, patient, professional, ro
               </Button>
             )}
           </div>
+
+          {/* WhatsApp da ausência do profissional */}
+          {appointment.status === 'professional_absence' && (
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <MessageCircle className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Aviso por WhatsApp</p>
+                {absenceNotified === null ? (
+                  <p className="text-sm text-gray-500">Verificando...</p>
+                ) : absenceNotified ? (
+                  <span title="Paciente avisado por WhatsApp" className="flex items-center gap-1 text-sm text-green-600 font-medium">
+                    <CheckSquare className="w-3.5 h-3.5" /> Enviado
+                  </span>
+                ) : (
+                  <p className="text-sm text-red-600 font-medium">Não enviado</p>
+                )}
+              </div>
+              {absenceNotified === false && (
+                <Button
+                  size="sm"
+                  className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                  disabled={sendingAbsence}
+                  onClick={handleSendAbsenceNotification}
+                >
+                  {sendingAbsence ? 'Enviando...' : 'Enviar'}
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Preliminary info */}
           <div className="flex items-start gap-3">

@@ -224,6 +224,10 @@ export const DEFAULT_TEMPLATES = {
     description: 'Lembrete diário de pagamento(s) vencido(s)',
     template: '💳 *Lembrete de Pagamento Vencido*\n\nOlá, {{patient_name}}! 👋\nVocê possui pagamento(s) *vencido(s)* na Clínica Espaço Saúde:\n\n{{items_list}}\n\n💰 *Total vencido: R$ {{total}}*\n\nEntre em contato ou compareça à clínica para regularizar.\nClínica Espaço Saúde 💙',
   },
+  PROFESSIONAL_ABSENCE_NOTIFICATION: {
+    description: 'Avisa o paciente que o agendamento foi cancelado por ausência do profissional',
+    template: '⚠️ *Aviso de Cancelamento*\n━━━━━━━━━━━━━━━━━━━━\n🏥 *Clínica Espaço Saúde*\n\nOlá, {{patient_name}}! 👋\nInfelizmente seu horário do dia *{{date}}* às *{{time}}*{{professional_line}} precisou ser cancelado porque o profissional não poderá atender.\n\nPor favor, entre em contato com a clínica para reagendar. 🙏\n━━━━━━━━━━━━━━━━━━━━',
+  },
 };
 
 export function renderTemplate(template, vars = {}) {

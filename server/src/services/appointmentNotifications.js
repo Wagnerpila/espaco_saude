@@ -39,6 +39,45 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
   return { success: true, patient_name: patient.fullName };
 }
 
+// Aviso de cancelamento por ausência do profissional — disparado quando um
+// admin marca o agendamento como "professional_absence" pelo painel (ver
+// hook em routes/entities.routes.js).
+export async function sendProfessionalAbsenceWhatsApp(appointment) {
+  if (!appointment || appointment.status !== 'professional_absence') {
+    return { skipped: true, reason: 'Agendamento não está marcado como ausência do profissional' };
+  }
+
+  const [patient, professional] = await Promise.all([
+    prisma.patient.findUnique({ where: { id: appointment.patientId } }),
+    appointment.professionalId ? prisma.professional.findUnique({ where: { id: appointment.professionalId } }) : null,
+  ]);
+
+  if (!patient?.phone) return { skipped: true, reason: 'Paciente sem telefone' };
+
+  const t = await loadMessageRenderer();
+  const message = t('PROFESSIONAL_ABSENCE_NOTIFICATION', {
+    patient_name: patient.fullName,
+    date: formatDateBR(appointment.appointmentDate),
+    time: appointment.appointmentTime,
+    professional_line: professional ? ` com *${professional.fullName}*` : '',
+  });
+
+  await sendWhatsAppMessage(patient.phone, message);
+
+  await prisma.notification.create({
+    data: {
+      type: 'professional_absence_notification',
+      title: 'Aviso de ausência do profissional enviado',
+      message: `Aviso de cancelamento por ausência do profissional enviado para ${patient.fullName}`,
+      patientId: appointment.patientId,
+      appointmentId: appointment.id,
+      priority: 'medium',
+    },
+  });
+
+  return { success: true, patient_name: patient.fullName };
+}
+
 // Lembretes de 1h antes da consulta. Roda a cada 15min (ver src/cron.js) e
 // usa a tabela Notification como registro de dedupe (type
 // 'appointment_reminder_1h') pra não mandar duas vezes a mesma consulta

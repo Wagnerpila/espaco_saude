@@ -7,7 +7,7 @@ import { requestToPrisma, prismaToResponse } from '../utils/case.js';
 import { generateCommissionForAppointment, cancelFinancialsForAppointment } from '../services/commissions.js';
 import { incrementPackageSessionsForAppointment } from '../services/packages.js';
 import { sendPaymentReceiptWhatsApp } from '../services/receipts.js';
-import { sendAppointmentConfirmationWhatsApp } from '../services/appointmentNotifications.js';
+import { sendAppointmentConfirmationWhatsApp, sendProfessionalAbsenceWhatsApp } from '../services/appointmentNotifications.js';
 
 export const entitiesRouter = Router();
 
@@ -42,6 +42,9 @@ async function fireEntityTriggers(entityName, before, after) {
   }
   if (entityName === 'Appointment' && after.status === 'confirmed' && before?.status !== 'confirmed') {
     await sendAppointmentConfirmationWhatsApp(after);
+  }
+  if (entityName === 'Appointment' && after.status === 'professional_absence' && before?.status !== 'professional_absence') {
+    await sendProfessionalAbsenceWhatsApp(after);
   }
   if (
     entityName === 'FinancialRecord' &&
