@@ -44,13 +44,32 @@ export async function createPendingIncomeForCompletedAppointment(appointment) {
     return { created: true, record };
   }
 
-  const alreadyBilled = await prisma.financialRecord.findFirst({
+  // 1) Cobrança já vinculada (via appointment_id) a qualquer sessão deste
+  // mesmo pacote — já existe registro, não duplica.
+  const linkedBilling = await prisma.financialRecord.findFirst({
     where: { appointment: { packageId: appointment.packageId } },
   });
-  if (alreadyBilled) return { skipped: true, reason: 'Este plano já teve cobrança registrada em outra sessão' };
+  if (linkedBilling) return { skipped: true, reason: 'Este plano já teve cobrança registrada em outra sessão' };
 
   const pkg = await prisma.servicePackage.findUnique({ where: { id: appointment.packageId } });
   if (!pkg) return { skipped: true, reason: 'Plano não encontrado' };
+
+  // 2) Pagamento pode ter sido lançado manualmente na contratação do plano
+  // (tela "Nova Transação" no Financeiro), sem vínculo com nenhum
+  // agendamento específico — busca por paciente+profissional dentro da
+  // vigência do plano pra não recriar uma cobrança que o paciente já pagou.
+  const unlinkedBilling = await prisma.financialRecord.findFirst({
+    where: {
+      type: 'income',
+      appointmentId: null,
+      patientId: appointment.patientId,
+      professionalId: appointment.professionalId,
+      transactionDate: { gte: pkg.startDate },
+    },
+  });
+  if (unlinkedBilling) {
+    return { skipped: true, reason: 'Paciente já tem pagamento registrado pra este plano (lançamento manual)' };
+  }
 
   const amount = pkg.finalValue ?? pkg.planValue;
   if (pkg.isFree || !amount || amount <= 0) {
