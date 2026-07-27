@@ -6,6 +6,7 @@ import { loadPermissions } from '../middleware/rbac.js';
 import { requestToPrisma, prismaToResponse } from '../utils/case.js';
 import { generateCommissionForAppointment, cancelFinancialsForAppointment } from '../services/commissions.js';
 import { incrementPackageSessionsForAppointment } from '../services/packages.js';
+import { createPendingIncomeForCompletedAppointment } from '../services/appointmentBilling.js';
 import { sendPaymentReceiptWhatsApp } from '../services/receipts.js';
 import { sendAppointmentConfirmationWhatsApp, sendProfessionalAbsenceWhatsApp } from '../services/appointmentNotifications.js';
 
@@ -32,6 +33,7 @@ async function fireEntityTriggers(entityName, before, after) {
   if (entityName === 'Appointment' && after.status === 'completed' && before?.status !== 'completed') {
     await generateCommissionForAppointment(after.id);
     await incrementPackageSessionsForAppointment(after);
+    await createPendingIncomeForCompletedAppointment(after);
   }
   if (
     entityName === 'Appointment' &&

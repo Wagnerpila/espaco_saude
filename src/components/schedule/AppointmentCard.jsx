@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Appointment as AppointmentEntity, Notification as NotificationEntity } from "@/entities/all";
 import { sendProfessionalAbsenceNotification } from "@/functions/appointmentNotifications";
 import PaymentModal from "./PaymentModal";
@@ -320,7 +322,14 @@ export default function AppointmentCard({ appointment, patient, professional, ro
             </div>
             <div>
               <p className="font-semibold text-gray-900 text-sm">{patient?.full_name || 'Paciente'}</p>
-              <p className="text-xs text-blue-500 cursor-pointer hover:underline">Acesse aqui o resumo do cliente</p>
+              {patient?.id && (
+                <Link
+                  to={`${createPageUrl("Patients")}?patient_id=${patient.id}`}
+                  className="text-xs text-blue-500 hover:underline"
+                >
+                  Acesse aqui o resumo do cliente
+                </Link>
+              )}
             </div>
           </div>
 

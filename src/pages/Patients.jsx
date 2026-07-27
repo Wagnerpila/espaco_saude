@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Patient } from "@/entities/Patient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ export default function PatientsPage() {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [searchParams] = useSearchParams();
 
   const loadPatients = async () => {
     setIsLoading(true);
@@ -45,6 +47,16 @@ export default function PatientsPage() {
 
   useEffect(() => { loadPatients(); }, []);
   useEffect(() => { filterPatients(); }, [filterPatients]);
+
+  // Abre direto o resumo de um paciente específico quando a página é acessada
+  // com ?patient_id=... (ex.: link "Acesse aqui o resumo do cliente" no popup
+  // do agendamento na Agenda).
+  useEffect(() => {
+    const patientId = searchParams.get('patient_id');
+    if (!patientId || patients.length === 0) return;
+    const found = patients.find((p) => p.id === patientId);
+    if (found) setSelectedPatient(found);
+  }, [searchParams, patients]);
 
   const handleSubmit = async (patientData) => {
     try {
