@@ -37,3 +37,4 @@ functionsRouter.post('/generateRecurringExpenses', ...adminOnly, fns.generateRec
 functionsRouter.post('/listWhatsAppMessageTemplates', ...adminOnly, fns.listWhatsAppMessageTemplates);
 functionsRouter.post('/saveWhatsAppMessageTemplate', ...adminOnly, fns.saveWhatsAppMessageTemplate);
 functionsRouter.post('/appointmentReminders1h', ...adminOnly, fns.appointmentReminders1h);
+functionsRouter.post('/backfillTodayCompletedBilling', ...adminOnly, fns.backfillTodayCompletedBilling);
