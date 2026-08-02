@@ -38,3 +38,5 @@ functionsRouter.post('/listWhatsAppMessageTemplates', ...adminOnly, fns.listWhat
 functionsRouter.post('/saveWhatsAppMessageTemplate', ...adminOnly, fns.saveWhatsAppMessageTemplate);
 functionsRouter.post('/appointmentReminders1h', ...adminOnly, fns.appointmentReminders1h);
 functionsRouter.post('/backfillTodayCompletedBilling', ...adminOnly, fns.backfillTodayCompletedBilling);
+functionsRouter.post('/listBillingConfirmations', ...adminOnly, fns.listBillingConfirmations);
+functionsRouter.post('/confirmBillingReminder', ...adminOnly, fns.confirmBillingReminder);

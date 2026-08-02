@@ -176,6 +176,10 @@ model FinancialRecord {
   notes           String?
   dueDate         DateTime? @map("due_date") @db.Date
   isRecurring     Boolean  @default(false) @map("is_recurring")
+  // Última vez que a cobrança por WhatsApp deste registro foi de fato enviada
+  // (só acontece após confirmação do admin no pop-up — ver
+  // services/billingConfirmation.js). Null = nunca enviada.
+  lastBillingReminderAt DateTime? @map("last_billing_reminder_at")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 

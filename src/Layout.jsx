@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User } from "@/entities/User";
 import { Patient, Professional } from "@/entities/all";
+import { usePendingBillingConfirmations } from "@/hooks/usePendingBillingConfirmations";
 import NotificationSystem from "./components/notifications/NotificationSystem";
 import BottomNav from "./components/layout/BottomNav";
 import PageTransition from "./components/layout/PageTransition";
@@ -148,6 +149,10 @@ export default function Layout({ children, currentPageName }) {
   const [navigationCategories, setNavigationCategories] = React.useState([]);
   const [showProfileModal, setShowProfileModal] = React.useState(false);
   const [dark, setDark] = useDarkMode();
+  // Badge no menu lateral avisando cobrança(s) vencida(s) aguardando
+  // confirmação do admin antes de liberar o envio por WhatsApp (ver
+  // pop-up equivalente na página Financeiro).
+  const { count: pendingBillingCount } = usePendingBillingConfirmations(userType === 'admin' && !isLoading);
 
   // flat list for BottomNav
   const navigationItems = React.useMemo(
@@ -306,6 +311,7 @@ export default function Layout({ children, currentPageName }) {
                   <SidebarMenu>
                     {group.items.map((item) => {
                       const isActive = location.pathname === item.url;
+                      const showBillingBadge = item.url === createPageUrl("Financial") && pendingBillingCount > 0;
                       return (
                         <SidebarMenuItem key={item.title}>
                           <SidebarMenuButton asChild className={`rounded-lg mb-0.5 transition-colors duration-150 ${
@@ -315,7 +321,12 @@ export default function Layout({ children, currentPageName }) {
                           }`}>
                             <Link to={item.url} className="flex items-center gap-2.5 px-3 py-1.5">
                               <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
-                              <span className="text-sm font-medium">{item.title}</span>
+                              <span className="text-sm font-medium flex-1">{item.title}</span>
+                              {showBillingBadge && (
+                                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                                  {pendingBillingCount}
+                                </span>
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

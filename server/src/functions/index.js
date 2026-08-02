@@ -1,5 +1,6 @@
 export { appointmentReminders1h } from './appointmentReminders1h.js';
 export { backfillTodayCompletedBilling } from './backfillTodayCompletedBilling.js';
+export { listBillingConfirmations, confirmBillingReminder } from './billingConfirmations.js';
 export { closeMonthlyCommissions } from './closeMonthlyCommissions.js';
 export { confirmPayment } from './confirmPayment.js';
 export { createFinancialTransaction } from './createFinancialTransaction.js';

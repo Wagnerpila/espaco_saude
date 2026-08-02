@@ -3,10 +3,11 @@ import { FinancialRecord, Patient, Professional, Appointment } from "@/entities/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, RefreshCw, FileDown } from "lucide-react";
+import { Plus, RefreshCw, FileDown, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { confirmPayment } from "@/functions/confirmPayment";
 import { exportDailyFinancialReportToPdf } from "@/utils/financialExport";
+import { usePendingBillingConfirmations } from "@/hooks/usePendingBillingConfirmations";
 import FinancialSummaryBar from "../components/financial/FinancialSummaryBar";
 import FinancialTransactionTable from "../components/financial/FinancialTransactionTable";
 import FinancialReportsByEntity from "../components/financial/FinancialReportsByEntity";
@@ -14,6 +15,7 @@ import FinancialMonthlyChart from "../components/financial/FinancialMonthlyChart
 import CreditAnalysis from "../components/financial/CreditAnalysis";
 import InvoiceEmission from "../components/financial/InvoiceEmission";
 import FinancialForm from "../components/financial/FinancialForm";
+import BillingConfirmationModal from "../components/financial/BillingConfirmationModal";
 
 export default function FinancialPage() {
   const [transactions, setTransactions] = useState([]);
@@ -27,8 +29,26 @@ export default function FinancialPage() {
   // Compartilhado entre o filtro da tabela de Transações e o Relatório do
   // Dia (PDF) — filtrar por profissional num lugar reflete no outro.
   const [professionalFilter, setProfessionalFilter] = useState("all");
+  const { items: pendingBilling, isLoading: isLoadingBilling, refetch: refetchBilling } = usePendingBillingConfirmations();
+  const [showBillingModal, setShowBillingModal] = useState(false);
+  const [autoOpenedBillingModal, setAutoOpenedBillingModal] = useState(false);
 
   useEffect(() => { loadData(); }, []);
+
+  // Assim que carregar e houver cobrança vencida aguardando confirmação, abre
+  // o pop-up automaticamente uma vez (o admin pode fechar e reabrir depois
+  // pelo botão "Cobranças a Confirmar").
+  useEffect(() => {
+    if (!isLoadingBilling && pendingBilling.length > 0 && !autoOpenedBillingModal) {
+      setShowBillingModal(true);
+      setAutoOpenedBillingModal(true);
+    }
+  }, [isLoadingBilling, pendingBilling, autoOpenedBillingModal]);
+
+  const handleBillingResolved = () => {
+    refetchBilling();
+    loadData();
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -114,6 +134,16 @@ export default function FinancialPage() {
             <Button variant="outline" size="sm" onClick={loadData} className="gap-1">
               <RefreshCw className="w-4 h-4" /> Atualizar
             </Button>
+            {pendingBilling.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowBillingModal(true)}
+                className="gap-1 border-orange-300 text-orange-700 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400"
+              >
+                <AlertTriangle className="w-4 h-4" /> Cobranças a Confirmar ({pendingBilling.length})
+              </Button>
+            )}
             <Button size="sm" onClick={() => { setEditingTransaction(null); setShowForm(true); }} className="bg-green-600 hover:bg-green-700 gap-1">
               <Plus className="w-4 h-4" /> Nova Transação
             </Button>
@@ -178,6 +208,14 @@ export default function FinancialPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {showBillingModal && pendingBilling.length > 0 && (
+        <BillingConfirmationModal
+          items={pendingBilling}
+          onClose={() => setShowBillingModal(false)}
+          onResolved={handleBillingResolved}
+        />
+      )}
     </div>
   );
 }
