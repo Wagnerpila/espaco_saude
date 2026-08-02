@@ -40,3 +40,6 @@ functionsRouter.post('/appointmentReminders1h', ...adminOnly, fns.appointmentRem
 functionsRouter.post('/backfillTodayCompletedBilling', ...adminOnly, fns.backfillTodayCompletedBilling);
 functionsRouter.post('/listBillingConfirmations', ...adminOnly, fns.listBillingConfirmations);
 functionsRouter.post('/confirmBillingReminder', ...adminOnly, fns.confirmBillingReminder);
+functionsRouter.post('/blockAllProfessionalsForHolidays', ...adminOnly, fns.blockAllProfessionalsForHolidays);
+functionsRouter.post('/listHolidayConflicts', ...adminOnly, fns.listHolidayConflicts);
+functionsRouter.post('/cancelHolidayConflict', ...adminOnly, fns.cancelHolidayConflict);

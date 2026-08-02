@@ -228,6 +228,10 @@ export const DEFAULT_TEMPLATES = {
     description: 'Avisa o paciente que o agendamento foi cancelado por ausência do profissional',
     template: '⚠️ *Aviso de Cancelamento*\n━━━━━━━━━━━━━━━━━━━━\n🏥 *Clínica Espaço Saúde*\n\nOlá, {{patient_name}}! 👋\nInfelizmente seu horário do dia *{{date}}* às *{{time}}*{{professional_line}} precisou ser cancelado porque o profissional não poderá atender.\n\nPor favor, entre em contato com a clínica para reagendar. 🙏\n━━━━━━━━━━━━━━━━━━━━',
   },
+  HOLIDAY_CLOSURE_NOTIFICATION: {
+    description: 'Avisa o paciente que o agendamento foi cancelado por a clínica estar fechada no feriado',
+    template: '⚠️ *Aviso de Cancelamento*\n━━━━━━━━━━━━━━━━━━━━\n🏥 *Clínica Espaço Saúde*\n\nOlá, {{patient_name}}! 👋\nSeu horário do dia *{{date}}* às *{{time}}* precisou ser cancelado porque a clínica estará fechada ({{holiday_reason}}).\n\nPor favor, entre em contato com a clínica para reagendar. 🙏\n━━━━━━━━━━━━━━━━━━━━',
+  },
 };
 
 export function renderTemplate(template, vars = {}) {

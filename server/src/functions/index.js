@@ -11,6 +11,7 @@ export { generateCommission } from './generateCommission.js';
 export { generateMonthlyAppointments } from './generateMonthlyAppointments.js';
 export { generateRecurringExpenses } from './generateRecurringExpenses.js';
 export { getAppointmentPublicDetails } from './getAppointmentPublicDetails.js';
+export { blockAllProfessionalsForHolidays, listHolidayConflicts, cancelHolidayConflict } from './holidayBlocks.js';
 export { notifyProfessionalStatus } from './notifyProfessionalStatus.js';
 export { onAppointmentCompleted } from './onAppointmentCompleted.js';
 export { onAppointmentConfirmed } from './onAppointmentConfirmed.js';

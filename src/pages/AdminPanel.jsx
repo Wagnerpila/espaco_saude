@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Patient, Professional, Appointment } from "@/entities/all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  UserCheck, 
+import {
+  Users,
+  UserCheck,
   Calendar,
   Shield,
   Activity,
@@ -12,10 +12,12 @@ import {
   Settings,
   FileText,
   MessageCircle,
+  CalendarOff,
   ChevronRight
 } from "lucide-react";
 import WhatsAppMessageSender from "@/components/admin/WhatsAppMessageSender";
 import WhatsAppMessageTemplates from "@/components/admin/WhatsAppMessageTemplates";
+import HolidayScheduleManager from "@/components/admin/HolidayScheduleManager";
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -117,6 +119,13 @@ export default function AdminPanel() {
       icon: FileText,
       action: 'whatsapp-templates',
       color: "bg-teal-500"
+    },
+    {
+      title: "Feriados & Bloqueio de Agenda",
+      description: "Bloquear agenda dos profissionais e corrigir agendamentos em feriados",
+      icon: CalendarOff,
+      action: 'holidays',
+      color: "bg-red-500"
     }
   ];
 
@@ -166,6 +175,23 @@ export default function AdminPanel() {
             Voltar ao Painel
           </button>
           <WhatsAppMessageTemplates />
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'holidays') {
+    return (
+      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 font-medium"
+          >
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Voltar ao Painel
+          </button>
+          <HolidayScheduleManager />
         </div>
       </div>
     );

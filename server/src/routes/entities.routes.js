@@ -9,6 +9,7 @@ import { incrementPackageSessionsForAppointment } from '../services/packages.js'
 import { createPendingIncomeForCompletedAppointment } from '../services/appointmentBilling.js';
 import { sendPaymentReceiptWhatsApp } from '../services/receipts.js';
 import { sendAppointmentConfirmationWhatsApp, sendProfessionalAbsenceWhatsApp } from '../services/appointmentNotifications.js';
+import { ensureHolidayBlocksForProfessional } from '../services/holidays.js';
 
 export const entitiesRouter = Router();
 
@@ -121,6 +122,17 @@ entitiesRouter.post('/:name', async (req, res, next) => {
   try {
     const data = requestToPrisma(req.body, req.entityConfig);
     const row = await prisma[req.entityConfig.model].create({ data });
+
+    // Profissional novo já nasce com a agenda bloqueada nos feriados
+    // nacionais/municipais de Imbaú/PR — sem isso, só os profissionais
+    // cadastrados antes desta automação (ou corrigidos manualmente pelo
+    // painel) ficam com o bloqueio.
+    if (req.params.name === 'Professional') {
+      ensureHolidayBlocksForProfessional(row.id).catch((err) =>
+        console.error('[entities] Falha ao criar bloqueios de feriado para profissional novo:', err)
+      );
+    }
+
     res.status(201).json(prismaToResponse(row, req.entityConfig.dateFields));
   } catch (err) {
     next(err);
