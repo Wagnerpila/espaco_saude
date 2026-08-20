@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import WhatsAppMessageSender from "@/components/admin/WhatsAppMessageSender";
 import WhatsAppMessageTemplates from "@/components/admin/WhatsAppMessageTemplates";
+import AppointmentConfirmationOverrides from "@/components/admin/AppointmentConfirmationOverrides";
 import HolidayScheduleManager from "@/components/admin/HolidayScheduleManager";
 
 export default function AdminPanel() {
@@ -174,7 +175,10 @@ export default function AdminPanel() {
             <ChevronRight className="w-4 h-4 rotate-180" />
             Voltar ao Painel
           </button>
-          <WhatsAppMessageTemplates />
+          <div className="space-y-6">
+            <WhatsAppMessageTemplates />
+            <AppointmentConfirmationOverrides />
+          </div>
         </div>
       </div>
     );

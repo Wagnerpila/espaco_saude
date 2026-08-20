@@ -36,6 +36,8 @@ functionsRouter.post('/dailyReminders', ...adminOnly, fns.dailyReminders);
 functionsRouter.post('/generateRecurringExpenses', ...adminOnly, fns.generateRecurringExpenses);
 functionsRouter.post('/listWhatsAppMessageTemplates', ...adminOnly, fns.listWhatsAppMessageTemplates);
 functionsRouter.post('/saveWhatsAppMessageTemplate', ...adminOnly, fns.saveWhatsAppMessageTemplate);
+functionsRouter.post('/listAppointmentConfirmationOverrides', ...adminOnly, fns.listAppointmentConfirmationOverrides);
+functionsRouter.post('/saveAppointmentConfirmationOverride', ...adminOnly, fns.saveAppointmentConfirmationOverride);
 functionsRouter.post('/appointmentReminders1h', ...adminOnly, fns.appointmentReminders1h);
 functionsRouter.post('/backfillTodayCompletedBilling', ...adminOnly, fns.backfillTodayCompletedBilling);
 functionsRouter.post('/listBillingConfirmations', ...adminOnly, fns.listBillingConfirmations);

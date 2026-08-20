@@ -465,3 +465,24 @@ model WhatsAppMessageTemplate {
 
   @@map("whatsapp_message_templates")
 }
+
+// ─────────────────────────────────────────────────────────────
+// Confirmação de agendamento personalizada por especialidade ou por
+// profissional específico (ver services/appointmentConfirmationOverrides.js).
+// scope = 'specialty' → scopeValue é o texto livre de Professional.specialty;
+// scope = 'professional' → scopeValue é o Professional.id. Um override de
+// profissional tem prioridade sobre um de especialidade. `template` nulo usa
+// o texto padrão de APPOINTMENT_CONFIRMATION_NOTIFICATION — permite trocar só
+// a imagem sem duplicar o texto em todo lugar.
+// ─────────────────────────────────────────────────────────────
+model AppointmentConfirmationOverride {
+  id         String   @id @default(cuid())
+  scope      String
+  scopeValue String   @map("scope_value")
+  template   String?
+  mediaUrl   String?  @map("media_url")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([scope, scopeValue])
+  @@map("appointment_confirmation_overrides")
+}

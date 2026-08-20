@@ -1,8 +1,9 @@
 import { prisma } from '../db.js';
 import { sendWhatsAppMessage } from './whatsapp.js';
 import { formatDateBR } from '../utils/format.js';
-import { loadMessageRenderer } from './whatsappMessages.js';
+import { loadMessageRenderer, renderTemplate } from './whatsappMessages.js';
 import { getAppointmentWords } from '../utils/appointmentLabel.js';
+import { resolveConfirmationOverride } from './appointmentConfirmationOverrides.js';
 
 // Detecta o serviço "Depilação a LED" (texto livre digitado no agendamento,
 // ver AppointmentForm.jsx) ignorando maiúsculas/minúsculas, pra escolher a
@@ -37,7 +38,7 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
   const templateKey = isDepilacaoLed(appointment.serviceType)
     ? 'APPOINTMENT_CONFIRMATION_NOTIFICATION_DEPILACAO_LED'
     : 'APPOINTMENT_CONFIRMATION_NOTIFICATION';
-  const message = t(templateKey, {
+  const vars = {
     patient_name: patient.fullName,
     date: formatDateBR(appointment.appointmentDate),
     time: appointment.appointmentTime,
@@ -46,9 +47,18 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
     appointment_noun: words.noun,
     appointment_article: words.article,
     appointment_confirmed: words.confirmedWord,
-  });
+  };
 
-  await sendWhatsAppMessage(patient.phone, message, t.media(templateKey));
+  // Override por profissional específico ou por especialidade (ver
+  // services/appointmentConfirmationOverrides.js) tem prioridade sobre o
+  // template padrão/Depilação a LED escolhido acima — nessa ordem:
+  // profissional > especialidade > serviço > padrão. `template` nulo no
+  // override significa "usa o texto padrão, só troca a imagem".
+  const override = await resolveConfirmationOverride({ professionalId: appointment.professionalId, specialty: professional?.specialty });
+  const message = override?.template ? renderTemplate(override.template, vars) : t(templateKey, vars);
+  const mediaUrl = override?.mediaUrl || t.media(templateKey);
+
+  await sendWhatsAppMessage(patient.phone, message, mediaUrl);
 
   return { success: true, patient_name: patient.fullName };
 }
