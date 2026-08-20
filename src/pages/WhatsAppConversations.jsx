@@ -74,6 +74,9 @@ function ConversationChat({ conversation }) {
               ? "bg-[#dcf8c6] text-gray-800 rounded-br-none"
               : "bg-white text-gray-800 rounded-bl-none"
           }`}>
+            {m.mediaUrl && (
+              <img src={m.mediaUrl} alt="Imagem enviada" className="rounded-md mb-1.5 max-h-48 object-cover" />
+            )}
             {m.content}
             {m.timestamp && (
               <div className="text-[10px] text-gray-400 mt-1 text-right">

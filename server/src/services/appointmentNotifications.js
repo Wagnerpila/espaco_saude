@@ -4,6 +4,17 @@ import { formatDateBR } from '../utils/format.js';
 import { loadMessageRenderer } from './whatsappMessages.js';
 import { getAppointmentWords } from '../utils/appointmentLabel.js';
 
+// Detecta o serviço "Depilação a LED" (texto livre digitado no agendamento,
+// ver AppointmentForm.jsx) ignorando maiúsculas/minúsculas, pra escolher a
+// variação de template com a imagem de cuidados pré-sessão (ver
+// APPOINTMENT_CONFIRMATION_NOTIFICATION_DEPILACAO_LED em whatsappMessages.js).
+// "depila" casa com "depilação"/"depilacao" sem precisar tratar acento — os
+// acentos da palavra (ç, ã) vêm só depois dessas 6 primeiras letras.
+function isDepilacaoLed(serviceType) {
+  const normalized = String(serviceType || '').toLowerCase();
+  return normalized.includes('depila') && normalized.includes('led');
+}
+
 // Confirmação de agendamento por WhatsApp — disparada tanto quando o próprio
 // paciente confirma pelo bot de chat (ver services/whatsappBot.js, que já
 // manda a confirmação na própria conversa) quanto quando um admin confirma
@@ -23,7 +34,10 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
 
   const words = getAppointmentWords(appointment.serviceType, professional?.specialty);
   const t = await loadMessageRenderer();
-  const message = t('APPOINTMENT_CONFIRMATION_NOTIFICATION', {
+  const templateKey = isDepilacaoLed(appointment.serviceType)
+    ? 'APPOINTMENT_CONFIRMATION_NOTIFICATION_DEPILACAO_LED'
+    : 'APPOINTMENT_CONFIRMATION_NOTIFICATION';
+  const message = t(templateKey, {
     patient_name: patient.fullName,
     date: formatDateBR(appointment.appointmentDate),
     time: appointment.appointmentTime,
@@ -34,7 +48,7 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
     appointment_confirmed: words.confirmedWord,
   });
 
-  await sendWhatsAppMessage(patient.phone, message);
+  await sendWhatsAppMessage(patient.phone, message, t.media(templateKey));
 
   return { success: true, patient_name: patient.fullName };
 }
@@ -62,7 +76,7 @@ export async function sendProfessionalAbsenceWhatsApp(appointment) {
     professional_line: professional ? ` com *${professional.fullName}*` : '',
   });
 
-  await sendWhatsAppMessage(patient.phone, message);
+  await sendWhatsAppMessage(patient.phone, message, t.media('PROFESSIONAL_ABSENCE_NOTIFICATION'));
 
   await prisma.notification.create({
     data: {
@@ -124,7 +138,7 @@ export async function sendOneHourAppointmentReminders() {
     });
 
     try {
-      await sendWhatsAppMessage(patient.phone, message);
+      await sendWhatsAppMessage(patient.phone, message, t.media('APPOINTMENT_REMINDER_1H'));
       await prisma.notification.create({
         data: {
           type: 'appointment_reminder_1h',

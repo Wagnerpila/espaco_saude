@@ -69,7 +69,7 @@ export async function sendConfirmedBillingReminder(financialRecordId) {
 
   // sendWhatsAppMessage nunca lança — em vez de deixar o admin achar que a
   // cobrança saiu quando na verdade falhou, checa o resultado explicitamente.
-  const result = await sendWhatsAppMessage(patient.phone, message);
+  const result = await sendWhatsAppMessage(patient.phone, message, t.media('PENDING_PAYMENT_REMINDER'));
   if (!result.success) throw new Error(result.error || 'Falha ao enviar mensagem pelo WhatsApp');
 
   await prisma.financialRecord.update({

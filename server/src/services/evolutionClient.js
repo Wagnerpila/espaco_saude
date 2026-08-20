@@ -25,3 +25,35 @@ export async function sendText(phoneNorm, message) {
   }
   return { sent: true };
 }
+
+// Envia uma imagem (com legenda opcional) via Evolution API. `mediaUrl`
+// precisa ser uma URL pública e absoluta — é o próprio servidor da Evolution
+// API que baixa a imagem a partir dela, não fazemos upload de binário aqui.
+export async function sendMedia(phoneNorm, mediaUrl, caption) {
+  const baseUrl = process.env.EVOLUTION_API_URL;
+  const instance = process.env.EVOLUTION_INSTANCE;
+  const apiKey = process.env.EVOLUTION_API_KEY;
+
+  if (!baseUrl || !instance || !apiKey) {
+    return { sent: false, reason: 'evolution_not_configured' };
+  }
+
+  const url = `${baseUrl.replace(/\/$/, '')}/message/sendMedia/${instance}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: apiKey },
+    body: JSON.stringify({
+      number: phoneNorm,
+      mediatype: 'image',
+      mimetype: 'image/jpeg',
+      media: mediaUrl,
+      caption: caption || '',
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Evolution API retornou ${res.status}: ${text.slice(0, 300)}`);
+  }
+  return { sent: true };
+}

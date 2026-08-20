@@ -47,7 +47,7 @@ export async function sendPaymentReceiptWhatsApp(financialRecord) {
     amount: formatCurrency(gross),
   });
 
-  await sendWhatsAppMessage(patient.phone, message);
+  await sendWhatsAppMessage(patient.phone, message, t.media('PAYMENT_RECEIPT'));
 
   return { success: true, patient_name: patient.fullName, receipt_number: receiptNumber };
 }

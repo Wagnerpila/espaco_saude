@@ -43,7 +43,7 @@ export async function dailyNotifications(_req, res, next) {
       });
 
       try {
-        await sendWhatsAppMessage(patient.phone, message);
+        await sendWhatsAppMessage(patient.phone, message, t.media('DAILY_APPOINTMENT_REMINDER'));
         sentReminders.push({ patient: patient.fullName, time: apt.appointmentTime });
       } catch (err) {
         errors.push({ type: 'reminder', patient: patient.fullName, error: err.message });

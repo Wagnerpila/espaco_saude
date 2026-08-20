@@ -460,6 +460,7 @@ model WhatsAppMessageTemplate {
   id        String   @id @default(cuid())
   key       String   @unique
   template  String
+  mediaUrl  String?  @map("media_url")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("whatsapp_message_templates")

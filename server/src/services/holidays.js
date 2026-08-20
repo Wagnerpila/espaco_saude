@@ -134,7 +134,7 @@ export async function cancelHolidayAppointment(appointmentId) {
       time: appointment.appointmentTime,
       holiday_reason: reason,
     });
-    const result = await sendWhatsAppMessage(patient.phone, message);
+    const result = await sendWhatsAppMessage(patient.phone, message, t.media('HOLIDAY_CLOSURE_NOTIFICATION'));
     if (!result.success) throw new Error(result.error || 'Falha ao enviar mensagem pelo WhatsApp');
   }
 
