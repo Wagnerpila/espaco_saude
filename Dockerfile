@@ -10,6 +10,7 @@ COPY package.json package-lock.json* ./
 RUN npm install
 COPY index.html vite.config.js jsconfig.json tailwind.config.js postcss.config.js components.json ./
 COPY src ./src
+COPY public ./public
 RUN npm run build
 
 # ---- Stage 2: backend + build do frontend embutido ----
