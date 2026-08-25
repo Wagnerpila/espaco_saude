@@ -155,15 +155,17 @@ export default function ScheduleBlockManager({ professional, onClose }) {
   // a valer (normalmente "hoje", não editável no form) — o que descreve o
   // bloqueio de fato é o padrão (dias da semana/mês ou datas específicas).
   const getRecurrenceLabel = (block) => {
+    const until = block.end_date ? ` até ${block.end_date.split('-').reverse().join('/')}` : "";
+
     if (block.recurring_pattern === "weekly") {
       const days = (block.recurring_days || [])
         .map(d => weekDays.find(w => w.value === d)?.label)
         .filter(Boolean)
         .join(", ");
-      return `Toda(o) ${days || "—"}`;
+      return `Toda(o) ${days || "—"}${until}`;
     }
     if (block.recurring_pattern === "monthly") {
-      return `Dia(s) ${(block.recurring_days || []).join(", ") || "—"} de cada mês`;
+      return `Dia(s) ${(block.recurring_days || []).join(", ") || "—"} de cada mês${until}`;
     }
     if (block.recurring_pattern === "custom") {
       return (block.custom_dates || []).map(d => d.split('-').reverse().join('/')).join(", ");
@@ -345,6 +347,18 @@ export default function ScheduleBlockManager({ professional, onClose }) {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {formData.recurring_pattern !== "none" && (
+                    <div>
+                      <Label>Repetir até (opcional)</Label>
+                      <Input
+                        type="date"
+                        value={formData.end_date}
+                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Deixe em branco para repetir indefinidamente</p>
+                    </div>
+                  )}
 
                   {formData.recurring_pattern === "weekly" && (
                     <div>
