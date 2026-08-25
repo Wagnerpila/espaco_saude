@@ -33,6 +33,7 @@ export default function ScheduleBlockManager({ professional, onClose }) {
     recurring_pattern: "none",
     recurring_days: [],
     custom_dates: [],
+    limit_time: false,
     reason: ""
   });
 
@@ -83,15 +84,35 @@ export default function ScheduleBlockManager({ professional, onClose }) {
 
   const handleSubmit = async () => {
     try {
-      await ScheduleBlock.create({
+      // Monta o payload explicitamente em vez de espalhar formData inteiro:
+      // `limit_time` é só um flag de UI (não existe na tabela) e
+      // start_time/end_time só fazem sentido pra partial_day ou pra uma
+      // recorrência semanal com horário limitado — do contrário o bloqueio
+      // vale o dia todo.
+      const payload = {
         professional_id: professional.id,
         block_type: blockType,
-        ...formData
-      });
-      
+        start_date: formData.start_date,
+        end_date: formData.end_date || null,
+        recurring_pattern: blockType === "recurring_exception" ? formData.recurring_pattern : "none",
+        recurring_days: formData.recurring_days || [],
+        custom_dates: formData.custom_dates || [],
+        reason: formData.reason
+      };
+
+      const hasTimeRange = blockType === "partial_day"
+        || (blockType === "recurring_exception" && formData.recurring_pattern === "weekly" && formData.limit_time);
+
+      if (hasTimeRange) {
+        payload.start_time = formData.start_time;
+        payload.end_time = formData.end_time;
+      }
+
+      await ScheduleBlock.create(payload);
+
       alert("Bloqueio criado com sucesso!");
       loadBlocks();
-      
+
       // Reset form
       setFormData({
         start_date: format(new Date(), 'yyyy-MM-dd'),
@@ -101,6 +122,7 @@ export default function ScheduleBlockManager({ professional, onClose }) {
         recurring_pattern: "none",
         recurring_days: [],
         custom_dates: [],
+        limit_time: false,
         reason: ""
       });
     } catch (error) {
@@ -129,6 +151,26 @@ export default function ScheduleBlockManager({ professional, onClose }) {
     return labels[type] || type;
   };
 
+  // Pra recorrência, start_date/end_date só marcam quando o bloqueio passou
+  // a valer (normalmente "hoje", não editável no form) — o que descreve o
+  // bloqueio de fato é o padrão (dias da semana/mês ou datas específicas).
+  const getRecurrenceLabel = (block) => {
+    if (block.recurring_pattern === "weekly") {
+      const days = (block.recurring_days || [])
+        .map(d => weekDays.find(w => w.value === d)?.label)
+        .filter(Boolean)
+        .join(", ");
+      return `Toda(o) ${days || "—"}`;
+    }
+    if (block.recurring_pattern === "monthly") {
+      return `Dia(s) ${(block.recurring_days || []).join(", ") || "—"} de cada mês`;
+    }
+    if (block.recurring_pattern === "custom") {
+      return (block.custom_dates || []).map(d => d.split('-').reverse().join('/')).join(", ");
+    }
+    return "";
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -153,13 +195,17 @@ export default function ScheduleBlockManager({ professional, onClose }) {
                 {blocks.map((block) => (
                   <div key={block.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline">{getBlockTypeLabel(block.block_type)}</Badge>
-                        <span className="text-sm font-medium">
-                          {block.start_date ? block.start_date.split('-').reverse().join('/') : ''}
-                          {block.end_date && ` - ${block.end_date.split('-').reverse().join('/')}`}
-                        </span>
-                        {block.start_time && (
+                        {block.block_type === "recurring_exception" ? (
+                          <span className="text-sm font-medium">{getRecurrenceLabel(block)}</span>
+                        ) : (
+                          <span className="text-sm font-medium">
+                            {block.start_date ? block.start_date.split('-').reverse().join('/') : ''}
+                            {block.end_date && ` - ${block.end_date.split('-').reverse().join('/')}`}
+                          </span>
+                        )}
+                        {block.start_time && block.end_time && (
                           <span className="text-sm text-gray-600">
                             {block.start_time} - {block.end_time}
                           </span>
@@ -314,6 +360,42 @@ export default function ScheduleBlockManager({ professional, onClose }) {
                           </div>
                         ))}
                       </div>
+
+                      <div className="flex items-center gap-2 mt-4">
+                        <Checkbox
+                          checked={formData.limit_time}
+                          onCheckedChange={(checked) =>
+                            setFormData({
+                              ...formData,
+                              limit_time: checked,
+                              start_time: checked ? (formData.start_time || "08:00") : "",
+                              end_time: checked ? (formData.end_time || "18:00") : ""
+                            })
+                          }
+                        />
+                        <Label className="text-sm">Bloquear apenas um horário específico (senão bloqueia o dia todo)</Label>
+                      </div>
+
+                      {formData.limit_time && (
+                        <div className="grid md:grid-cols-2 gap-4 mt-2">
+                          <div>
+                            <Label>Hora de Início</Label>
+                            <Input
+                              type="time"
+                              value={formData.start_time}
+                              onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <Label>Hora de Término</Label>
+                            <Input
+                              type="time"
+                              value={formData.end_time}
+                              onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

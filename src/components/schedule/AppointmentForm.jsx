@@ -10,6 +10,7 @@ import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle, Se
 import { motion, AnimatePresence } from "framer-motion";
 import { Room, Appointment, ScheduleBlock, ServicePackage, Patient } from "@/entities/all";
 import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
+import { findMatchingScheduleBlock } from "@/utils/scheduleBlocks";
 
 export default function AppointmentForm({ 
   appointment, 
@@ -79,7 +80,7 @@ export default function AppointmentForm({
     } else {
       setHolidayBlock(null);
     }
-  }, [formData.appointment_date, formData.professional_id]);
+  }, [formData.appointment_date, formData.appointment_time, formData.professional_id]);
 
   useEffect(() => {
     if (formData.patient_id) {
@@ -105,13 +106,18 @@ export default function AppointmentForm({
   };
 
   const checkHolidayBlock = async () => {
+    // Busca todos os bloqueios ativos do profissional (feriado, período
+    // parcial, recorrência semanal/mensal/datas específicas) e deixa a
+    // avaliação de qual se aplica à data+hora escolhida para
+    // findMatchingScheduleBlock — o filtro exato por start_date usado antes
+    // só pegava bloqueios de dia único, ignorando os recorrentes.
     const blocks = await ScheduleBlock.filter({
       professional_id: formData.professional_id,
       active: true,
-      block_type: "full_day",
-      start_date: formData.appointment_date,
     });
-    setHolidayBlock(blocks.length > 0 ? blocks[0] : null);
+    setHolidayBlock(
+      findMatchingScheduleBlock(blocks, formData.appointment_date, formData.appointment_time)
+    );
   };
 
   const loadRooms = async () => {
@@ -151,7 +157,10 @@ export default function AppointmentForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (holidayBlock) {
-      alert(`❌ Não é possível agendar nesta data.\nMotivo: ${holidayBlock.reason}`);
+      const period = holidayBlock.start_time && holidayBlock.end_time
+        ? ` (${holidayBlock.start_time} às ${holidayBlock.end_time})`
+        : '';
+      alert(`❌ Não é possível agendar neste horário${period}.\nMotivo: ${holidayBlock.reason || 'agenda bloqueada'}`);
       return;
     }
     if (isSubmitting) return;
@@ -223,7 +232,10 @@ export default function AppointmentForm({
             {holidayBlock && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4">
                 <AlertCircle className="w-5 h-5 shrink-0" />
-                <span className="text-sm font-medium">Feriado: {holidayBlock.reason} — Agendamento bloqueado nesta data.</span>
+                <span className="text-sm font-medium">
+                  Agenda bloqueada{holidayBlock.start_time && holidayBlock.end_time ? ` (${holidayBlock.start_time} às ${holidayBlock.end_time})` : ''}
+                  {holidayBlock.reason ? `: ${holidayBlock.reason}` : ''}.
+                </span>
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
