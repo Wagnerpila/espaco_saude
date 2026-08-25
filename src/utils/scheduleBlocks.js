@@ -5,7 +5,15 @@
 
 function isBlockActiveOnDate(block, dateStr) {
   if (block.start_date && dateStr < block.start_date) return false;
-  if (block.end_date && dateStr > block.end_date) return false;
+
+  // full_day/partial_day sem "Data de Término" preenchida significa "só esse
+  // dia" (é assim que o form trata, deixando o campo em branco) — sem essa
+  // regra, dateStr > null nunca é true e o bloqueio de um dia só vazava pra
+  // todas as datas futuras. Já um bloqueio recorrente sem end_date É pra
+  // valer indefinidamente a partir do start_date (o form nem mostra esse
+  // campo pra recorrência), então mantém o comportamento em aberto.
+  const endDate = block.end_date || (block.block_type === "recurring_exception" ? null : block.start_date);
+  if (endDate && dateStr > endDate) return false;
   return true;
 }
 
