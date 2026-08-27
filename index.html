@@ -6,6 +6,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="manifest" href="/manifest.json" />
     <title>Clínica Espaço Saúde</title>
+    <script>
+      // Diagnóstico temporário: mostra o erro na tela em vez de deixar tela branca.
+      (function () {
+        function showDiag(msg) {
+          var el = document.getElementById('root');
+          if (!el || el.dataset.diagShown) return;
+          el.dataset.diagShown = '1';
+          el.innerHTML =
+            '<div style="font-family:monospace;white-space:pre-wrap;word-break:break-word;padding:16px;color:#900;background:#fff;font-size:13px;">' +
+            'Erro ao carregar o app. Tire um print desta tela inteira e envie pro suporte:\n\n' +
+            msg +
+            '\n\nuserAgent: ' + navigator.userAgent +
+            '</div>';
+        }
+        window.addEventListener('error', function (e) {
+          var msg = (e.message || 'erro desconhecido');
+          if (e.filename) msg += '\n' + e.filename + ':' + e.lineno + ':' + e.colno;
+          if (e.error && e.error.stack) msg += '\n\n' + e.error.stack;
+          showDiag(msg);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var reason = e.reason;
+          showDiag('Promise rejeitada:\n' + (reason && reason.stack ? reason.stack : String(reason)));
+        });
+        setTimeout(function () {
+          var el = document.getElementById('root');
+          if (el && el.childElementCount === 0) {
+            showDiag('App não iniciou (tela ficou em branco, nenhum erro foi capturado).');
+          }
+        }, 6000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
