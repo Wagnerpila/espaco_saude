@@ -3,14 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Plus, FileText, ChevronDown, ChevronUp, Calendar, User, 
-  ClipboardList, X, Check, Loader2
+import {
+  Plus, FileText, ChevronDown, ChevronUp, Calendar, User,
+  ClipboardList, X, Check, Loader2, Trash2
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) {
+function EvolutionForm({ patient, professionals, templates, equipments, onSave, onCancel }) {
   const [form, setForm] = useState({
     professional_id: "",
     session_date: format(new Date(), "yyyy-MM-dd"),
@@ -20,6 +20,7 @@ function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) 
     next_session_notes: "",
     template_id: "",
     checked_fields: [],
+    equipment_ids: [],
   });
   const [saving, setSaving] = useState(false);
   const selectedTemplate = templates.find(t => t.id === form.template_id);
@@ -30,6 +31,15 @@ function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) 
       checked_fields: f.checked_fields.includes(field)
         ? f.checked_fields.filter(x => x !== field)
         : [...f.checked_fields, field]
+    }));
+  };
+
+  const toggleEquipment = (id) => {
+    setForm(f => ({
+      ...f,
+      equipment_ids: f.equipment_ids.includes(id)
+        ? f.equipment_ids.filter(x => x !== id)
+        : [...f.equipment_ids, id]
     }));
   };
 
@@ -44,6 +54,7 @@ function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) 
       treatment: form.treatment || form.checked_fields.join(", "),
       observations: form.observations,
       next_session_notes: form.next_session_notes,
+      equipment_ids: form.equipment_ids,
     };
     await onSave(data);
     setSaving(false);
@@ -99,6 +110,21 @@ function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) 
             </div>
           )}
 
+          {equipments.length > 0 && (
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-2 block">Aparelhos utilizados</label>
+              <div className="grid grid-cols-2 gap-1 p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
+                {equipments.map(eq => (
+                  <label key={eq.id} className="flex items-center gap-2 text-sm cursor-pointer p-1 rounded hover:bg-gray-100">
+                    <input type="checkbox" checked={form.equipment_ids.includes(eq.id)}
+                      onChange={() => toggleEquipment(eq.id)} className="rounded" />
+                    {eq.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Diagnóstico / Avaliação</label>
             <input value={form.diagnosis} onChange={e => setForm(f => ({ ...f, diagnosis: e.target.value }))}
@@ -141,9 +167,12 @@ function EvolutionForm({ patient, professionals, templates, onSave, onCancel }) 
   );
 }
 
-function EvolutionCard({ record, professionals }) {
+function EvolutionCard({ record, professionals, equipments, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const professional = professionals.find(p => p.id === record.professional_id);
+  const equipmentNames = (record.equipment_ids || [])
+    .map(id => equipments.find(e => e.id === id)?.name)
+    .filter(Boolean);
 
   return (
     <div className="border rounded-lg overflow-hidden">
@@ -159,7 +188,18 @@ function EvolutionCard({ record, professionals }) {
             <p className="text-xs text-gray-500">{professional?.full_name || "Profissional"}</p>
           </div>
         </div>
-        {expanded ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-gray-400 hover:text-red-600"
+            title="Excluir evolução"
+            onClick={(e) => { e.stopPropagation(); onDelete(record); }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+          {expanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        </div>
       </button>
 
       {expanded && (
@@ -174,6 +214,12 @@ function EvolutionCard({ record, professionals }) {
             <div>
               <span className="font-medium text-gray-700">Tratamento: </span>
               <span className="text-gray-600">{record.treatment}</span>
+            </div>
+          )}
+          {equipmentNames.length > 0 && (
+            <div>
+              <span className="font-medium text-gray-700">Aparelhos: </span>
+              <span className="text-gray-600">{equipmentNames.join(", ")}</span>
             </div>
           )}
           {record.observations && (
@@ -198,19 +244,22 @@ export default function PatientMedicalHistory({ patient }) {
   const [records, setRecords] = useState([]);
   const [professionals, setProfessionals] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [equipments, setEquipments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
-    const [recs, profs, tmpls] = await Promise.all([
+    const [recs, profs, tmpls, equips] = await Promise.all([
       base44.entities.MedicalRecord.filter({ patient_id: patient.id }),
       base44.entities.Professional.list(),
       base44.entities.MedicalRecordTemplate.list(),
+      base44.entities.Equipment.filter({ active: true }),
     ]);
     setRecords(recs.sort((a, b) => new Date(b.session_date) - new Date(a.session_date)));
     setProfessionals(profs);
     setTemplates(tmpls);
+    setEquipments(equips);
     setIsLoading(false);
   };
 
@@ -221,6 +270,12 @@ export default function PatientMedicalHistory({ patient }) {
   const handleSave = async (data) => {
     await base44.entities.MedicalRecord.create(data);
     setShowForm(false);
+    loadData();
+  };
+
+  const handleDelete = async (record) => {
+    if (!confirm("Excluir esta evolução? Essa ação não pode ser desfeita.")) return;
+    await base44.entities.MedicalRecord.delete(record.id);
     loadData();
   };
 
@@ -253,7 +308,7 @@ export default function PatientMedicalHistory({ patient }) {
       ) : (
         <div className="space-y-2">
           {records.map(r => (
-            <EvolutionCard key={r.id} record={r} professionals={professionals} />
+            <EvolutionCard key={r.id} record={r} professionals={professionals} equipments={equipments} onDelete={handleDelete} />
           ))}
         </div>
       )}
@@ -263,6 +318,7 @@ export default function PatientMedicalHistory({ patient }) {
           patient={patient}
           professionals={professionals}
           templates={templates}
+          equipments={equipments}
           onSave={handleSave}
           onCancel={() => setShowForm(false)}
         />

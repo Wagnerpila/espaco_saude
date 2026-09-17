@@ -201,6 +201,8 @@ model MedicalRecord {
   observations     String?
   nextSessionNotes String?  @map("next_session_notes")
   attachments      Json?    // [{ file_url, file_name, file_type }]
+  equipmentIds     String[] @default([]) @map("equipment_ids")
+  exerciseIds      String[] @default([]) @map("exercise_ids")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

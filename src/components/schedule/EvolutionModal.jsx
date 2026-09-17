@@ -58,7 +58,9 @@ export default function EvolutionModal({ appointment, patient, professional, onC
       treatment: checkedList.join(", "),
       observations: description,
       next_session_notes: "",
-      attachments: []
+      attachments: [],
+      equipment_ids: selectedEquipments,
+      exercise_ids: selectedExercises,
     });
     setSaving(false);
     onSaved?.();
