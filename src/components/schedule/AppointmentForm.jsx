@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Room, Appointment, ScheduleBlock, ServicePackage, Patient } from "@/entities/all";
 import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
 import { findMatchingScheduleBlock } from "@/utils/scheduleBlocks";
+import AppointmentMedicalRecordSection from "./AppointmentMedicalRecordSection";
 
 export default function AppointmentForm({ 
   appointment, 
@@ -366,6 +367,14 @@ export default function AppointmentForm({
                 <Label>Observações</Label>
                 <Textarea value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} placeholder="Observações sobre o agendamento..." rows={3} />
               </div>
+
+              {/* Só faz sentido pra um agendamento que já existe (tem id pra
+                  vincular o prontuário via appointment_id) — permite inserir
+                  ou corrigir o prontuário (inclusive os aparelhos usados) de
+                  uma consulta já finalizada, sem depender de status. */}
+              {appointment?.id && (
+                <AppointmentMedicalRecordSection appointment={{ ...appointment, ...formData, id: appointment.id }} />
+              )}
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={onCancel}><X className="w-4 h-4 mr-2" />Cancelar</Button>
