@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 import path from 'node:path';
 import fs from 'node:fs';
 import { authRouter } from './routes/auth.routes.js';
@@ -15,12 +16,27 @@ fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 export function createApp() {
   const app = express();
 
+  // gzip: o bundle do frontend tem ~2MB sem compressão — em 3G/4G fraco no
+  // celular isso demorava a ponto de parecer tela branca.
+  app.use(compression());
   app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
   app.use(cookieParser());
   app.use(express.json({ limit: '5mb' }));
   app.use('/uploads', express.static(UPLOAD_DIR));
 
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+  // Telemetria de carregamento do frontend (script inline em index.html):
+  // registra no log do container em que etapa o app parou em cada aparelho
+  // (boot, erro, montou ou não) junto com o user-agent — usado pra depurar
+  // tela branca em celulares que não temos em mãos. Sem auth de propósito
+  // (roda antes do login); payload truncado pra não encher o log.
+  app.post('/api/client-log', express.text({ type: '*/*', limit: '16kb' }), (req, res) => {
+    const body = typeof req.body === 'string' ? req.body.slice(0, 4000) : JSON.stringify(req.body || {}).slice(0, 4000);
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    console.log(`[client-log] ip=${ip} ua="${req.headers['user-agent'] || ''}" ${body.replace(/\s+/g, ' ')}`);
+    res.status(204).end();
+  });
 
   app.use('/api/auth', authRouter);
   app.use('/api/entities', entitiesRouter);

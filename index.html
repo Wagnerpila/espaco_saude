@@ -7,12 +7,49 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Clínica Espaço Saúde</title>
     <script>
-      // Diagnóstico temporário: mostra o erro na tela em vez de deixar tela branca.
+      // Diagnóstico de carregamento (debug tela branca no Android). ES5 puro
+      // de propósito, pra rodar até em navegador antigo. Além de mostrar o
+      // erro na tela, manda cada etapa pro servidor (/api/client-log, aparece
+      // no log do container) — assim vemos o que acontece no aparelho do
+      // usuário sem precisar de print.
       (function () {
+        var sid = Math.random().toString(36).slice(2, 8);
+        var sent = 0;
+        function report(stage, detail) {
+          if (sent++ > 12) return;
+          try {
+            var payload = JSON.stringify({
+              sid: sid, stage: stage, detail: detail, path: location.pathname,
+              t: Math.round((window.performance && performance.now ? performance.now() : 0)),
+              conn: navigator.connection ? navigator.connection.effectiveType : null,
+              screen: screen.width + 'x' + screen.height
+            });
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/api/client-log', true);
+            xhr.setRequestHeader('Content-Type', 'text/plain');
+            xhr.send(payload);
+          } catch (e) {}
+        }
+        function snapshot() {
+          var el = document.getElementById('root');
+          var text = '';
+          try { text = (document.body.innerText || '').replace(/\s+/g, ' ').slice(0, 300); } catch (e) {}
+          var ls = 'ok';
+          try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); } catch (e) { ls = 'blocked: ' + e.message; }
+          return {
+            mounted: !!window.__appMounted,
+            rootChildren: el ? el.childElementCount : -1,
+            rootHtmlLen: el ? el.innerHTML.length : -1,
+            text: text, localStorage: ls, cookies: navigator.cookieEnabled,
+            css: document.styleSheets ? document.styleSheets.length : -1,
+            readyState: document.readyState
+          };
+        }
+        window.__reportClient = report;
         function showDiag(msg) {
           var el = document.getElementById('root');
-          if (!el || el.dataset.diagShown) return;
-          el.dataset.diagShown = '1';
+          if (!el || el.getAttribute('data-diag-shown')) return;
+          el.setAttribute('data-diag-shown', '1');
           el.innerHTML =
             '<div style="font-family:monospace;white-space:pre-wrap;word-break:break-word;padding:16px;color:#900;background:#fff;font-size:13px;">' +
             'Erro ao carregar o app. Tire um print desta tela inteira e envie pro suporte:\n\n' +
@@ -20,22 +57,37 @@
             '\n\nuserAgent: ' + navigator.userAgent +
             '</div>';
         }
+        // Só mostra o erro na tela se o app não renderizou nada (tela branca) —
+        // erros pontuais com o app funcionando ficam só no relatório.
+        function showDiagIfBlank(msg) {
+          setTimeout(function () {
+            var el = document.getElementById('root');
+            if (el && el.childElementCount === 0) showDiag(msg);
+          }, 300);
+        }
+        report('boot', null);
         window.addEventListener('error', function (e) {
           var msg = (e.message || 'erro desconhecido');
           if (e.filename) msg += '\n' + e.filename + ':' + e.lineno + ':' + e.colno;
           if (e.error && e.error.stack) msg += '\n\n' + e.error.stack;
-          showDiag(msg);
-        });
+          if (!e.message && e.target && e.target !== window) msg = 'falha ao carregar recurso: ' + (e.target.src || e.target.href);
+          report('error', msg.slice(0, 1500));
+          showDiagIfBlank(msg);
+        }, true);
         window.addEventListener('unhandledrejection', function (e) {
           var reason = e.reason;
-          showDiag('Promise rejeitada:\n' + (reason && reason.stack ? reason.stack : String(reason)));
+          var msg = 'Promise rejeitada:\n' + (reason && reason.stack ? reason.stack : String(reason));
+          report('rejection', msg.slice(0, 1500));
         });
         setTimeout(function () {
+          var snap = snapshot();
+          report('t6s', snap);
           var el = document.getElementById('root');
           if (el && el.childElementCount === 0) {
             showDiag('App não iniciou (tela ficou em branco, nenhum erro foi capturado).');
           }
         }, 6000);
+        setTimeout(function () { report('t20s', snapshot()); }, 20000);
       })();
     </script>
   </head>
