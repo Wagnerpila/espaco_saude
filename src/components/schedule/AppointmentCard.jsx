@@ -11,7 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Appointment as AppointmentEntity, Notification as NotificationEntity } from "@/entities/all";
-import { sendProfessionalAbsenceNotification } from "@/functions/appointmentNotifications";
+import { sendProfessionalAbsenceNotification, sendAppointmentCancellationNotification } from "@/functions/appointmentNotifications";
 import PaymentModal from "./PaymentModal";
 
 const STATUS_CONFIG = {
@@ -103,6 +103,7 @@ export default function AppointmentCard({ appointment, patient, professional, ro
   const [pendingStatus, setPendingStatus] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [absenceNotified, setAbsenceNotified] = useState(null); // null = verificando, true/false = resultado
   const [sendingAbsence, setSendingAbsence] = useState(false);
 
@@ -164,9 +165,20 @@ export default function AppointmentCard({ appointment, patient, professional, ro
     setConfirming(false);
   };
 
-  const handleDeleteAppointment = async () => {
-    if (!confirm("Excluir este agendamento? Essa ação não pode ser desfeita.")) return;
+  // Exclusão com aviso opcional ao paciente: o WhatsApp de cancelamento é
+  // enviado ANTES de excluir, porque o servidor precisa do agendamento no
+  // banco pra montar a mensagem. Falha no envio não impede a exclusão.
+  const handleDeleteAppointment = async (notifyPatient) => {
     setDeleting(true);
+    if (notifyPatient) {
+      try {
+        const { data } = await sendAppointmentCancellationNotification(appointment.id);
+        if (data?.skipped) alert(`Aviso não enviado: ${data.reason}`);
+      } catch (e) {
+        console.error(e);
+        alert("Não foi possível enviar o aviso de cancelamento por WhatsApp. O agendamento será excluído mesmo assim.");
+      }
+    }
     try {
       await AppointmentEntity.delete(appointment.id);
       if (onDelete) onDelete(appointment);
@@ -246,7 +258,7 @@ export default function AppointmentCard({ appointment, patient, professional, ro
             className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50"
             title="Excluir agendamento"
             disabled={deleting}
-            onClick={handleDeleteAppointment}
+            onClick={() => setShowDeleteDialog(true)}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -455,6 +467,39 @@ export default function AppointmentCard({ appointment, patient, professional, ro
           </div>
         </div>
       </div>
+
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4" onClick={(e) => { e.stopPropagation(); if (!deleting) setShowDeleteDialog(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Cancelar agendamento?</h3>
+              <p className="text-sm text-gray-500">O agendamento será excluído da agenda. Essa ação não pode ser desfeita.</p>
+            </div>
+            <div className="rounded-lg border bg-gray-50 p-3 text-sm space-y-1">
+              <p className="font-semibold">{patient?.full_name || "Paciente"}</p>
+              <p className="text-gray-600">{professional?.full_name || "Sem profissional"}</p>
+              <p className="text-gray-600 capitalize">{dateStr} • {appointment.appointment_time}</p>
+            </div>
+            {!patient?.phone && (
+              <p className="text-sm text-red-600">Paciente sem telefone cadastrado — não dá pra avisar por WhatsApp.</p>
+            )}
+            <div className="flex flex-col gap-2">
+              {patient?.phone && (
+                <Button className="bg-red-500 hover:bg-red-600 text-white" disabled={deleting} onClick={() => handleDeleteAppointment(true)}>
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  {deleting ? "Cancelando..." : "Cancelar e avisar paciente"}
+                </Button>
+              )}
+              <Button variant="outline" className="text-red-600" disabled={deleting} onClick={() => handleDeleteAppointment(false)}>
+                Excluir sem avisar
+              </Button>
+              <Button variant="ghost" disabled={deleting} onClick={() => setShowDeleteDialog(false)}>
+                Voltar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPayment && (
         <PaymentModal

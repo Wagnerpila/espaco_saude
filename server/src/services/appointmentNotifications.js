@@ -63,6 +63,35 @@ export async function sendAppointmentConfirmationWhatsApp(appointment) {
   return { success: true, patient_name: patient.fullName };
 }
 
+// Aviso de cancelamento pela clínica — enviado quando o colaborador exclui o
+// agendamento e escolhe avisar o paciente (popup em AppointmentCard.jsx). É
+// chamado ANTES da exclusão, enquanto o agendamento ainda existe no banco.
+export async function sendAppointmentCancellationWhatsApp(appointment) {
+  const [patient, professional] = await Promise.all([
+    prisma.patient.findUnique({ where: { id: appointment.patientId } }),
+    appointment.professionalId ? prisma.professional.findUnique({ where: { id: appointment.professionalId } }) : null,
+  ]);
+
+  if (!patient?.phone) return { skipped: true, reason: 'Paciente sem telefone' };
+
+  const words = getAppointmentWords(appointment.serviceType, professional?.specialty);
+  const t = await loadMessageRenderer();
+  const message = t('APPOINTMENT_CANCELLATION_NOTIFICATION', {
+    patient_name: patient.fullName,
+    date: formatDateBR(appointment.appointmentDate),
+    time: appointment.appointmentTime,
+    professional_line: professional ? `👨‍⚕️ *Profissional:* ${professional.fullName}\n` : '',
+    service_line: appointment.serviceType ? `🏷️ *Serviço:* ${appointment.serviceType}\n` : '',
+    appointment_noun: words.noun,
+    appointment_article: words.article,
+    appointment_cancelled: words.confirmedWord.replace('confirmad', 'cancelad'),
+  });
+
+  await sendWhatsAppMessage(patient.phone, message, t.media('APPOINTMENT_CANCELLATION_NOTIFICATION'));
+
+  return { success: true, patient_name: patient.fullName };
+}
+
 // Aviso de cancelamento por ausência do profissional — disparado quando um
 // admin marca o agendamento como "professional_absence" pelo painel (ver
 // hook em routes/entities.routes.js).

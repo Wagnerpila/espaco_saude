@@ -11,6 +11,7 @@ import DayView from "../components/schedule/DayView";
 import TimeGridView from "../components/schedule/TimeGridView";
 import WeekView from "../components/schedule/WeekView";
 import AppointmentForm from "../components/schedule/AppointmentForm";
+import ConfirmNewAppointmentDialog from "../components/schedule/ConfirmNewAppointmentDialog";
 
 export default function SchedulePage() {
   const [appointments, setAppointments] = useState([]);
@@ -23,6 +24,7 @@ export default function SchedulePage() {
   const [editingAppointment, setEditingAppointment] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -57,6 +59,11 @@ export default function SchedulePage() {
       setEditingAppointment(null);
       setSelectedSlot(null);
       loadData();
+      // Agendamento novo e ainda pendente: pede a confirmação na hora, que é
+      // o que dispara o WhatsApp de confirmação pro paciente.
+      if (!editingAppointment && saved?.id && saved.status === "pending") {
+        setAppointmentToConfirm(saved);
+      }
       return saved;
     } catch (error) {
       console.error("Erro ao salvar agendamento:", error);
@@ -142,6 +149,16 @@ export default function SchedulePage() {
               setEditingAppointment(null);
               setSelectedSlot(null);
             }}
+          />
+        )}
+
+        {appointmentToConfirm && (
+          <ConfirmNewAppointmentDialog
+            appointment={appointmentToConfirm}
+            patient={patients.find(p => p.id === appointmentToConfirm.patient_id)}
+            professional={professionals.find(p => p.id === appointmentToConfirm.professional_id)}
+            onClose={() => setAppointmentToConfirm(null)}
+            onConfirmed={loadData}
           />
         )}
 

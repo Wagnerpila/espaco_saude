@@ -23,6 +23,7 @@ functionsRouter.post('/onPaymentConfirmed', requireAuth, fns.onPaymentConfirmed)
 // isso aqui, ver comentário em functions/resetAttendantMode.js.
 functionsRouter.post('/resetAttendantMode', requireAuth, fns.resetAttendantMode);
 functionsRouter.post('/sendProfessionalAbsenceNotification', requireAuth, fns.sendProfessionalAbsenceNotification);
+functionsRouter.post('/sendAppointmentCancellationNotification', requireAuth, fns.sendAppointmentCancellationNotification);
 
 // Admin-only — mesma exigência do base44 original (user.role === 'admin').
 const adminOnly = [requireAuth, loadPermissions, requireAdmin];

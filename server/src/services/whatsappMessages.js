@@ -315,6 +315,12 @@ export const DEFAULT_TEMPLATES = {
     description: 'Lembrete diário de pagamento(s) vencido(s)',
     template: '💳 *Lembrete de Pagamento Vencido*\n\nOlá, {{patient_name}}! 👋\nVocê possui pagamento(s) *vencido(s)* na Clínica Espaço Saúde:\n\n{{items_list}}\n\n💰 *Total vencido: R$ {{total}}*\n\nEntre em contato ou compareça à clínica para regularizar.\nClínica Espaço Saúde 💙',
   },
+  APPOINTMENT_CANCELLATION_NOTIFICATION: {
+    category: 'notificacoes',
+    supportsMedia: true,
+    description: 'Avisa o paciente que o agendamento foi cancelado pela clínica (enviado ao excluir o agendamento, se o colaborador escolher avisar)',
+    template: '❌ *Agendamento Cancelado*\n━━━━━━━━━━━━━━━━━━━━\n🏥 *Clínica Espaço Saúde*\n\nOlá, {{patient_name}}! 👋\n{{appointment_article}} {{appointment_noun}} abaixo foi {{appointment_cancelled}}:\n\n📅 *Data:* {{date}}\n⏰ *Horário:* {{time}}\n{{professional_line}}{{service_line}}\nPara reagendar, entre em contato com a clínica. 💙\n━━━━━━━━━━━━━━━━━━━━',
+  },
   PROFESSIONAL_ABSENCE_NOTIFICATION: {
     category: 'notificacoes',
     supportsMedia: true,

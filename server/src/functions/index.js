@@ -21,6 +21,7 @@ export { processAppointmentResponse } from './processAppointmentResponse.js';
 export { resetAttendantMode } from './resetAttendantMode.js';
 export { sendInviteEmail } from './sendInviteEmail.js';
 export { sendProfessionalAbsenceNotification } from './sendProfessionalAbsenceNotification.js';
+export { sendAppointmentCancellationNotification } from './sendAppointmentCancellationNotification.js';
 export { syncPaymentStatus } from './syncPaymentStatus.js';
 export { updateCommissionPayment } from './updateCommissionPayment.js';
 export { listWhatsAppMessageTemplates, saveWhatsAppMessageTemplate } from './whatsappMessageTemplates.js';
