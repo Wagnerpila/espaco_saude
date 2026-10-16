@@ -7,7 +7,7 @@ import { loadMessageRenderer } from './whatsappMessages.js';
 // como função Deno chamada pelo n8n, que também era responsável por mandar
 // a resposta de volta pela Evolution API; agora tudo isso vive aqui e em
 // routes/webhooks.routes.js (que chama processInboundMessage e depois manda
-// a resposta via evolutionClient.sendText).
+// a resposta via whatsappClient.sendText).
 
 const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 horas
 const ATTENDANT_TIMEOUT_MS = 60 * 60 * 1000; // 1 hora

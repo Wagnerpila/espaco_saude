@@ -1,6 +1,6 @@
 import { prisma } from '../db.js';
 import { formatPhone } from '../utils/format.js';
-import { sendText, sendMedia } from './evolutionClient.js';
+import { sendText, sendMedia } from './whatsappClient.js';
 
 // Substitui a função base44 `sendWhatsAppMessage` (que proxiava via n8n).
 // Sempre grava a mensagem em WhatsAppConversation para manter o histórico

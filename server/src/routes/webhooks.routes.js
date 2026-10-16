@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { processInboundMessage } from '../services/whatsappBot.js';
-import { sendText } from '../services/evolutionClient.js';
+import { sendText } from '../services/whatsappClient.js';
+import { resolveLidToPhone } from '../services/wahaClient.js';
 
 export const webhooksRouter = Router();
 
@@ -146,6 +147,68 @@ webhooksRouter.post('/evolution', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('[webhooks/evolution] Erro ao processar mensagem:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// O WhatsApp registra muitos celulares brasileiros sem o 9º dígito
+// (554298615195), mas o cadastro de pacientes guarda com ele. Recoloca o 9
+// pra que a busca do paciente pelo telefone no bot bata com o banco.
+function addBrazilianNinthDigit(digits) {
+  if (/^55\d{2}[6-9]\d{7}$/.test(digits)) return `${digits.slice(0, 4)}9${digits.slice(4)}`;
+  return digits;
+}
+
+// Recebe eventos da WAHA. Configurar na sessão (dashboard WAHA -> sessão ->
+// Webhooks) a URL .../api/webhooks/waha?secret=<WAHA_WEBHOOK_SECRET> com o
+// evento "message" (que já não inclui as mensagens enviadas pela clínica).
+// Payload: { event, session, payload: { id, from, fromMe, body, ... } }.
+webhooksRouter.post('/waha', async (req, res) => {
+  const secret = process.env.WAHA_WEBHOOK_SECRET;
+  if (secret) {
+    const provided = req.headers['x-webhook-secret'] || req.query.secret;
+    if (provided !== secret) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
+  }
+
+  const body = req.body || {};
+  if (body.event !== 'message') {
+    return res.json({ ignored: true, reason: 'evento não tratado' });
+  }
+
+  const msg = body.payload || {};
+  const chatId = String(msg.from || '');
+  const text = String(msg.body || '').trim();
+
+  if (msg.fromMe) return res.json({ ignored: true, reason: 'fromMe' });
+  if (!chatId || chatId.endsWith('@g.us') || chatId === 'status@broadcast') {
+    return res.json({ ignored: true, reason: 'grupo/status' });
+  }
+  if (!text) return res.json({ ignored: true, reason: 'mensagem sem texto' });
+
+  // Contatos @lid não trazem o telefone no JID — resolve pelo endpoint de
+  // LIDs da WAHA (ou pelo campo alternativo que algumas engines mandam).
+  let phone = chatId.endsWith('@lid')
+    ? String(msg._data?.key?.remoteJidAlt || '').replace(/@.*/, '') || (await resolveLidToPhone(chatId))
+    : chatId.replace(/@.*/, '');
+  if (!phone) return res.json({ ignored: true, reason: 'telefone não resolvido' });
+  phone = addBrazilianNinthDigit(phone.replace(/\D/g, ''));
+
+  try {
+    const result = await processInboundMessage({ phone, message: text, sessionId: phone });
+
+    // Responde no mesmo chatId que mandou a mensagem — evita qualquer
+    // divergência de 9º dígito ou de @lid na hora da resposta.
+    if (!result.ignored && result.reply) {
+      await sendText(chatId, result.reply).catch((err) => {
+        console.error(`[webhooks/waha] Falha ao enviar resposta para ${chatId}:`, err.message);
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error('[webhooks/waha] Erro ao processar mensagem:', err);
     res.status(500).json({ error: err.message });
   }
 });
