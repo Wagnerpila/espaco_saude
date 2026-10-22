@@ -50,3 +50,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // Sinaliza pro diagnóstico de carregamento em index.html que o React subiu.
 window.__appMounted = true
 window.__reportClient?.('mounted', null)
+
+// Service worker do PWA (public/sw.js): torna o app instalável e mostra a tela
+// de "sem conexão". Só em produção — no dev server atrapalharia o HMR.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      window.__reportClient?.('sw-error', String(err?.message || err))
+    })
+  })
+}

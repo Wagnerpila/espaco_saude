@@ -52,6 +52,10 @@ export function createApp() {
   // já serve o frontend em outra porta).
   const FRONTEND_DIST_DIR = process.env.FRONTEND_DIST_DIR || path.resolve('public');
   if (fs.existsSync(FRONTEND_DIST_DIR)) {
+    // express.static ignora pastas com ponto; o assetlinks.json do APK (TWA)
+    // precisa ser servido em /.well-known pro Android abrir o app sem a barra
+    // do navegador.
+    app.use('/.well-known', express.static(path.join(FRONTEND_DIST_DIR, '.well-known')));
     app.use(express.static(FRONTEND_DIST_DIR));
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next();

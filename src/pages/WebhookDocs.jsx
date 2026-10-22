@@ -119,7 +119,7 @@ export default function WebhookDocsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
+    <div className="p-4 md:p-8 bg-app min-h-screen">
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* Header */}

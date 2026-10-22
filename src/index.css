@@ -108,3 +108,24 @@
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* ── Identidade visual (estilo Master UP) ─────────────────────────────
+   Degradê magenta→rosa usado no topo das telas, no menu e nos destaques.
+   Trocar as duas cores aqui muda o app inteiro. */
+:root {
+  --brand-from: #b03fb0;
+  --brand-to: #ea4480;
+  --brand: #c8409c;
+  --app-bg: #f2f2f7;
+}
+.dark {
+  --app-bg: #0b0b0f;
+}
+.bg-brand-gradient {
+  background-image: linear-gradient(160deg, var(--brand-from) 0%, var(--brand-to) 100%);
+}
+.text-brand { color: var(--brand); }
+.bg-brand { background-color: var(--brand); }
+.border-brand { border-color: var(--brand); }
+.bg-app { background-color: var(--app-bg); }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

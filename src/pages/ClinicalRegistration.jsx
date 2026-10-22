@@ -252,7 +252,7 @@ export default function ClinicalRegistration() {
   const deleteRoom = async (id) => { await Room.delete(id); load(); };
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
+    <div className="p-4 md:p-8 bg-app min-h-screen">
       <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl flex items-center justify-center">

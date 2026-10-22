@@ -200,7 +200,7 @@ export default function ServiceConfiguration() {
 
   if (isLoading) {
     return (
-      <div className="p-8 bg-blue-50 min-h-screen">
+      <div className="p-3 md:p-8 bg-app min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-64"></div>
@@ -212,7 +212,7 @@ export default function ServiceConfiguration() {
   }
 
   return (
-    <div className="p-8 bg-blue-50 min-h-screen">
+    <div className="p-3 md:p-8 bg-app min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">

@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "br.com.wcmdigital.espacosaude",
+      "sha256_cert_fingerprints": ["8A:1A:66:6C:78:7D:AC:4E:14:48:5C:41:96:DF:C3:75:D9:3E:B0:BB:1B:1E:8F:92:77:05:BF:D9:E0:14:3B:E5"]
+    }
+  }
+]

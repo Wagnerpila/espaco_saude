@@ -1,215 +1,96 @@
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  MessageCircle,
-  AlertCircle
-} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Clock, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Appointment } from "@/entities/Appointment";
-import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
+import { createPageUrl } from "@/utils";
+import AppointmentCard from "../schedule/AppointmentCard";
+import EvolutionModal from "../schedule/EvolutionModal";
 
-const statusColors = {
-  pending: "bg-yellow-100 text-yellow-800",
-  confirmed: "bg-blue-100 text-blue-800",
-  cancelled: "bg-red-100 text-red-800",
-  completed: "bg-green-100 text-green-800"
+const STATUS = {
+  pending:              { color: "#3b82f6", label: "Aguardando" },
+  confirmed:            { color: "#3b82f6", label: "Aguardando" },
+  completed:            { color: "#22c55e", label: "Finalizado" },
+  no_show:              { color: "#ef4444", label: "Não compareceu" },
+  justified_absence:    { color: "#a855f7", label: "Aus. justificada" },
+  professional_absence: { color: "#f97316", label: "Aus. profissional" },
+  null_absence:         { color: "#9ca3af", label: "Aus. nula" },
+  cancelled:            { color: "#f87171", label: "Cancelado" },
 };
 
-const statusLabels = {
-  pending: "Pendente",
-  confirmed: "Confirmado",
-  cancelled: "Cancelado",
-  completed: "Concluído"
-};
+// Atendimentos de hoje no painel: lista enxuta (hora, paciente, serviço e
+// status). Tocar abre o mesmo cartão da consulta da Agenda, com todas as
+// ações (finalizar, pagamento, evolução, lembrete, editar).
+export default function TodaySchedule({ appointments, patients = [], professionals = [], rooms = [], isLoading, onRefresh }) {
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState(null);
+  const [evolutionAppointment, setEvolutionAppointment] = useState(null);
 
-const paymentStatusColors = {
-  pending: "bg-orange-100 text-orange-800",
-  paid: "bg-green-100 text-green-800",
-  cancelled: "bg-gray-100 text-gray-800"
-};
-
-export default function TodaySchedule({ appointments, allAppointments, isLoading, onRefresh }) {
-  const [processingAppointment, setProcessingAppointment] = useState(null);
-
-  const todayAppointments = appointments || [];
-
-  const handleCompleteAppointment = async (appointment) => {
-    if (!appointment.value || appointment.value <= 0) {
-      alert("Para finalizar a consulta, é necessário definir um valor. Edite o agendamento para adicionar o valor.");
-      return;
-    }
-
-    setProcessingAppointment(appointment.id);
-    
-    try {
-      // 1. Atualizar status do agendamento para "completed"
-      await Appointment.update(appointment.id, { 
-        status: 'completed',
-        payment_status: 'pending' // Inicialmente pendente
-      });
-
-      // 2. Criar transação financeira automaticamente
-      const response = await createFinancialTransaction({
-        appointmentId: appointment.id,
-        paymentStatus: 'pending'
-      });
-
-      if (response.data.success) {
-        alert('Consulta finalizada! Transação financeira criada automaticamente como pendente.');
-        onRefresh(); // Recarregar dados
-      } else {
-        alert('Consulta finalizada, mas erro ao criar transação: ' + response.data.message);
-      }
-    } catch (error) {
-      console.error("Erro ao finalizar consulta:", error);
-      alert('Erro ao finalizar consulta');
-    }
-    
-    setProcessingAppointment(null);
-  };
-
-  const handleRequestPayment = (appointment) => {
-    // Buscar dados do paciente para enviar WhatsApp
-    const patient = appointment.patient;
-    
-    if (!patient?.phone) {
-      alert("Este paciente não possui um número de telefone cadastrado.");
-      return;
-    }
-
-    const message = `🏥 *Espaço Saúde* 🏥
-
-Olá ${patient.full_name}!
-
-Sua consulta foi finalizada com sucesso! 
-
-💰 Valor da consulta: *R$ ${(appointment.value || 0).toFixed(2).replace('.', ',')}*
-📅 Data: ${format(new Date(appointment.appointment_date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
-🕒 Horário: ${appointment.appointment_time}
-⚕️ Serviço: ${appointment.service_type || 'Consulta'}
-
-Para realizar o pagamento, entre em contato conosco ou compareça à clínica.
-
-Agradecemos a sua confiança!
-💙 Estética • Fisioterapia • Pilates`;
-
-    const phoneNumber = patient.phone.replace(/\D/g, '');
-    const whatsappUrl = `https://wa.me/55${phoneNumber}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-48" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Array(3).fill(0).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const list = [...(appointments || [])].sort((a, b) => (a.appointment_time || "").localeCompare(b.appointment_time || ""));
+  const getPatient = (id) => patients.find(p => p.id === id);
+  const getProfessional = (id) => professionals.find(p => p.id === id);
+  const getRoom = (id) => rooms.find(r => r.id === id);
 
   return (
-    <Card className="shadow-md">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-blue-500" />
-          Agenda de Hoje
-          <Badge variant="outline">{todayAppointments.length} consultas</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {todayAppointments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p>Nenhum agendamento para hoje</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {todayAppointments.map((appointment) => (
-              <div
-                key={appointment.id}
-                className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+    <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3" style={{ color: "#e5397f" }}>
+        <Clock className="w-7 h-7" />
+        <span className="text-4xl font-light leading-none">{isLoading ? "–" : list.filter(a => a.status !== "cancelled").length}</span>
+        <span className="text-[15px] leading-tight">atendimentos<br />de hoje</span>
+      </div>
+
+      {isLoading ? (
+        <div className="px-4 pb-4 space-y-2">
+          {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
+        </div>
+      ) : list.length === 0 ? (
+        <p className="text-center py-6 text-gray-500 border-t border-gray-100 dark:border-gray-800">Nenhum agendamento para hoje</p>
+      ) : (
+        <div>
+          {list.map(apt => {
+            const st = STATUS[apt.status] || STATUS.pending;
+            const patient = getPatient(apt.patient_id) || apt.patient;
+            return (
+              <button
+                key={apt.id}
+                onClick={() => setSelected(apt)}
+                className={`w-full flex items-center gap-3 px-4 py-3 border-t border-gray-100 dark:border-gray-800 text-left hover:bg-gray-50 dark:hover:bg-gray-800 ${apt.status === "cancelled" ? "opacity-50" : ""}`}
               >
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <Clock className="w-5 h-5 text-blue-600 mx-auto mb-1" />
-                    <span className="text-sm font-medium text-blue-600">
-                      {appointment.appointment_time}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">
-                      {appointment.patient?.full_name || 'Paciente não encontrado'}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {appointment.service_type || 'Consulta'}
-                    </p>
-                    {appointment.value > 0 && (
-                      <p className="text-sm text-green-600 font-medium">
-                        R$ {appointment.value.toFixed(2).replace('.', ',')}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                <span className="w-12 text-[15px] font-medium text-gray-900 dark:text-white tabular-nums">{apt.appointment_time}</span>
+                <span className="w-1 self-stretch rounded-full" style={{ background: st.color }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[15px] font-medium text-gray-900 dark:text-white truncate">{patient?.full_name || "Paciente"}</span>
+                  <span className="block text-sm text-gray-500 truncate">{apt.service_type || "Consulta"} · <span style={{ color: st.color }}>{st.label}</span></span>
+                </span>
+                <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-                <div className="flex items-center gap-2">
-                  <Badge className={statusColors[appointment.status]}>
-                    {statusLabels[appointment.status]}
-                  </Badge>
-                  
-                  {appointment.status === 'completed' && appointment.payment_status && (
-                    <Badge className={paymentStatusColors[appointment.payment_status]}>
-                      {appointment.payment_status === 'paid' ? 'Pago' : 'Pendente'}
-                    </Badge>
-                  )}
+      {selected && (
+        <AppointmentCard
+          appointment={selected}
+          patient={getPatient(selected.patient_id)}
+          professional={getProfessional(selected.professional_id)}
+          room={getRoom(selected.room_id)}
+          onClose={() => setSelected(null)}
+          onEdit={() => { const id = selected.id; setSelected(null); navigate(`${createPageUrl("Schedule")}?editar=${id}`); }}
+          onOpenEvolution={(apt) => { setSelected(null); setEvolutionAppointment(apt); }}
+          onStatusChange={(updated) => { setSelected(updated); onRefresh?.(); }}
+          onDelete={() => { setSelected(null); onRefresh?.(); }}
+        />
+      )}
 
-                  <div className="flex gap-1">
-                    {appointment.status === 'confirmed' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleCompleteAppointment(appointment)}
-                        disabled={processingAppointment === appointment.id}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {processingAppointment === appointment.id ? (
-                          <AlertCircle className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4" />
-                        )}
-                      </Button>
-                    )}
-
-                    {appointment.status === 'completed' && appointment.payment_status === 'pending' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRequestPayment(appointment)}
-                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      {evolutionAppointment && (
+        <EvolutionModal
+          appointment={evolutionAppointment}
+          patient={getPatient(evolutionAppointment.patient_id)}
+          professional={getProfessional(evolutionAppointment.professional_id)}
+          onClose={() => setEvolutionAppointment(null)}
+          onSaved={() => { setEvolutionAppointment(null); onRefresh?.(); }}
+        />
+      )}
+    </div>
   );
 }

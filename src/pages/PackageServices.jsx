@@ -110,7 +110,7 @@ export default function PackageServicesPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div className="p-4 md:p-8 min-h-screen bg-app">
       <div className="max-w-6xl mx-auto">
         {!selectedType && !showForm && (
           <div className="space-y-6">

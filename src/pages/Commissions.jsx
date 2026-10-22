@@ -137,7 +137,7 @@ export default function CommissionsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+    <div className="p-4 md:p-8 min-h-screen bg-app">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

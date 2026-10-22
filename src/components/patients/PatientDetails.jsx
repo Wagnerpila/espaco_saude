@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,9 +19,12 @@ import {
   Sparkles,
   CalendarCheck,
   Trash2,
-  Pencil
+  Pencil,
+  CalendarPlus
 } from "lucide-react";
 import { differenceInYears } from "date-fns";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 
 // Converte YYYY-MM-DD → DD/MM/YYYY sem bug de fuso horário
 function formatDateBR(isoDate) {
@@ -288,20 +291,52 @@ Agradecemos a sua atenção!
   const activePackages = packages.filter(p => p.status === 'active');
 
   return (
-    <Card className="shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between border-b">
-        <CardTitle className="text-xl font-bold">
-          {patient.full_name}
-        </CardTitle>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleWhatsApp}>
-            <MessageCircle className="w-4 h-4 text-green-600" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => onEdit(patient)}>
-            <Edit className="w-4 h-4" />
-          </Button>
+    <Card className="shadow-sm rounded-2xl overflow-hidden border-0">
+      {/* Cabeçalho da ficha (estilo Master UP): contato rápido, "Agendar" e
+          os números do paciente. */}
+      <div className="bg-gradient-to-b from-teal-500 to-cyan-700 text-white px-5 pt-4 pb-5">
+        <div className="flex justify-end gap-1 -mr-2">
+          {patient.phone && (
+            <a href={`tel:${patient.phone.replace(/\D/g, '')}`} className="p-2 rounded-full hover:bg-white/15" aria-label="Ligar">
+              <Phone className="w-5 h-5" />
+            </a>
+          )}
+          <button onClick={handleWhatsApp} className="p-2 rounded-full hover:bg-white/15" aria-label="WhatsApp">
+            <MessageCircle className="w-5 h-5" />
+          </button>
+          <button onClick={() => onEdit(patient)} className="p-2 rounded-full hover:bg-white/15" aria-label="Editar cadastro">
+            <Edit className="w-5 h-5" />
+          </button>
         </div>
-      </CardHeader>
+        <div className="flex flex-col items-center text-center -mt-2">
+          <div className="w-20 h-20 rounded-full bg-white/30 flex items-center justify-center text-3xl font-semibold">
+            {patient.full_name?.[0]}
+          </div>
+          <h2 className="mt-2 text-2xl font-semibold leading-tight">{patient.full_name}</h2>
+          <p className="text-white/85">{patient.phone}</p>
+          {!patient.active && <span className="mt-1 text-xs bg-white/25 rounded-full px-2 py-0.5">Inativo</span>}
+          <Link
+            to={`${createPageUrl("Schedule")}?novo=1&paciente=${patient.id}`}
+            className="mt-3 inline-flex items-center gap-2 bg-white text-cyan-700 font-semibold rounded-full px-6 py-2 shadow-sm"
+          >
+            <CalendarPlus className="w-4 h-4" /> Agendar
+          </Link>
+        </div>
+        <div className="mt-4 grid grid-cols-3 rounded-xl bg-white/15 divide-x divide-white/20 text-center">
+          <div className="py-2">
+            <p className="text-lg font-semibold">R$ {financialSummary.paid.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+            <p className="text-xs text-white/80">total pago</p>
+          </div>
+          <div className="py-2">
+            <p className="text-lg font-semibold">R$ {financialSummary.pending.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</p>
+            <p className="text-xs text-white/80">pendente</p>
+          </div>
+          <div className="py-2">
+            <p className="text-lg font-semibold">{patientAppointments.filter(a => a.status === 'completed').length}</p>
+            <p className="text-xs text-white/80">atendimentos</p>
+          </div>
+        </div>
+      </div>
       <CardContent className="p-0">
         <Tabs defaultValue="services" className="w-full">
           <TabsList className="w-full rounded-none border-b bg-gradient-to-r from-purple-50 to-pink-50">

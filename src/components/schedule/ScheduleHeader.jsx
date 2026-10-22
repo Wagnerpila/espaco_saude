@@ -1,9 +1,14 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const VIEW_MODES = [
+  { id: "list", label: "Lista" },
+  { id: "day", label: "Dia" },
+  { id: "week", label: "Semana" },
+];
 
 export default function ScheduleHeader({
   currentDate,
@@ -14,76 +19,46 @@ export default function ScheduleHeader({
   onExportPdf
 }) {
   const getDateRange = () => {
-    if (viewMode === "day") {
-      return format(currentDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
-    } else {
+    if (viewMode === "week") {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
       return `${format(weekStart, "dd/MM", { locale: ptBR })} - ${format(weekEnd, "dd/MM/yyyy", { locale: ptBR })}`;
     }
+    return format(currentDate, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   };
 
   return (
-    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigateDate("prev")}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </Button>
-        
-        <div className="text-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Calendar className="w-8 h-8 text-blue-500" />
-            Agenda
-          </h1>
-          <p className="text-gray-600 mt-1">{getDateRange()}</p>
-        </div>
-
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => navigateDate("next")}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </Button>
+    <div className="bg-white dark:bg-gray-900 md:bg-transparent md:dark:bg-transparent border-b border-gray-100 dark:border-gray-800 md:border-0 px-3 py-2 md:px-0 md:pt-0 md:pb-4 flex flex-wrap items-center gap-2">
+      <div className="flex bg-gray-100 dark:bg-gray-800 rounded-full p-1">
+        {VIEW_MODES.map(m => (
+          <button
+            key={m.id}
+            onClick={() => setViewMode(m.id)}
+            className={`px-4 py-1.5 rounded-full text-sm transition-colors ${viewMode === m.id ? "bg-white dark:bg-gray-700 shadow-sm text-brand font-semibold" : "text-gray-600 dark:text-gray-300"}`}
+          >
+            {m.label}
+          </button>
+        ))}
       </div>
 
-      <div className="flex items-center gap-3 w-full md:w-auto">
-        <div className="flex bg-gray-100 rounded-lg p-1">
-          <Button
-            variant={viewMode === "day" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("day")}
-            className={viewMode === "day" ? "bg-white shadow-sm" : ""}
-          >
-            Dia
+      {viewMode !== "list" && (
+        <div className="flex items-center gap-1 order-last w-full md:order-none md:w-auto">
+          <Button variant="ghost" size="icon" onClick={() => navigateDate("prev")} aria-label="Anterior">
+            <ChevronLeft className="w-5 h-5" />
           </Button>
-          <Button
-            variant={viewMode === "week" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("week")}
-            className={viewMode === "week" ? "bg-white shadow-sm" : ""}
-          >
-            Semana
+          <span className="flex-1 md:flex-none text-center text-sm md:text-base font-medium text-gray-800 dark:text-gray-100 capitalize">{getDateRange()}</span>
+          <Button variant="ghost" size="icon" onClick={() => navigateDate("next")} aria-label="Próximo">
+            <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
-        
-        <Button
-          variant="outline"
-          onClick={onExportPdf}
-          title="Gerar PDF da agenda do dia exibido"
-        >
-          <FileDown className="w-4 h-4 mr-2" />
-          Imprimir PDF
-        </Button>
+      )}
 
-        <Button
-          onClick={onNewAppointment}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
+      <div className="flex items-center gap-2 ml-auto">
+        <Button variant="outline" size="sm" onClick={onExportPdf} title="Gerar PDF da agenda do dia exibido" className="rounded-full">
+          <FileDown className="w-4 h-4 md:mr-2" />
+          <span className="hidden md:inline">Imprimir PDF</span>
+        </Button>
+        <Button onClick={onNewAppointment} size="sm" className="hidden md:inline-flex rounded-full bg-brand hover:opacity-90 text-white">
           <Plus className="w-4 h-4 mr-2" />
           Novo Agendamento
         </Button>

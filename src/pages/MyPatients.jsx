@@ -86,7 +86,7 @@ export default function MyPatientsPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+      <div className="p-4 md:p-8 bg-app min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-64"></div>
@@ -102,7 +102,7 @@ export default function MyPatientsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    <div className="p-4 md:p-8 bg-app min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">

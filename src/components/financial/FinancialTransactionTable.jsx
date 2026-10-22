@@ -98,83 +98,94 @@ export default function FinancialTransactionTable({
 
   return (
     <Card className="shadow-sm">
-      <CardHeader className="border-b pb-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Receipt className="w-5 h-5 text-green-500" />
-            Transações
-          </CardTitle>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <Input placeholder="Buscar..." className="pl-8 h-8 w-48 text-sm" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-            <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="h-8 w-36 text-xs"><SelectValue placeholder="Mês" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os meses</SelectItem>
-                {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div className="relative">
-              <Input
-                type="date"
-                value={filterDay}
-                onChange={e => setFilterDay(e.target.value)}
-                className="h-8 w-36 text-xs pr-7"
-                title="Filtrar por dia"
-              />
-              {filterDay && (
-                <button
-                  type="button"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  title="Limpar filtro de dia"
-                  onClick={() => setFilterDay("")}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="income">Receitas</SelectItem>
-                <SelectItem value="expense">Despesas</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 w-32 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="paid">Pago</SelectItem>
-                <SelectItem value="pending">Pendente</SelectItem>
-                <SelectItem value="cancelled">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={filterAttendance} onValueChange={setFilterAttendance}>
-              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Comparecimento" /></SelectTrigger>
-              <SelectContent>
-                {ATTENDANCE_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterProfessional} onValueChange={setFilterProfessional}>
-              <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Profissional" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os profissionais</SelectItem>
-                {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+      <CardHeader className="border-b pb-4 px-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Receipt className="w-5 h-5 text-green-500" />
+          Transações
+          <span className="text-sm font-normal text-gray-400">({filtered.length})</span>
+        </CardTitle>
+
+        <div className="relative mt-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input placeholder="Buscar paciente, profissional ou descrição" className="pl-9 h-10 w-full text-sm rounded-xl" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
-        {/* Mini summary */}
-        <div className="flex gap-4 mt-3 text-sm">
-          <span className="text-green-600 font-semibold">↑ R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          <span className="text-red-500 font-semibold">↓ R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          <span className={`font-bold ${(totalIncome - totalExpense) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-            Saldo: R$ {(totalIncome - totalExpense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </span>
+        {/* Filtros: rolam para o lado no celular */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mt-2 pb-1 -mx-1 px-1">
+          <Select value={filterMonth} onValueChange={setFilterMonth}>
+            <SelectTrigger className="h-8 w-auto min-w-[8.5rem] shrink-0 text-xs rounded-full"><SelectValue placeholder="Mês" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os meses</SelectItem>
+              {months.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="relative shrink-0">
+            <Input
+              type="date"
+              value={filterDay}
+              onChange={e => setFilterDay(e.target.value)}
+              className="h-8 w-36 text-xs pr-7 rounded-full"
+              title="Filtrar por dia"
+            />
+            {filterDay && (
+              <button
+                type="button"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Limpar filtro de dia"
+                onClick={() => setFilterDay("")}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-8 w-auto min-w-[7rem] shrink-0 text-xs rounded-full"><SelectValue placeholder="Tipo" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Receitas e despesas</SelectItem>
+              <SelectItem value="income">Receitas</SelectItem>
+              <SelectItem value="expense">Despesas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="h-8 w-auto min-w-[7rem] shrink-0 text-xs rounded-full"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="paid">Pago</SelectItem>
+              <SelectItem value="pending">Pendente</SelectItem>
+              <SelectItem value="cancelled">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterAttendance} onValueChange={setFilterAttendance}>
+            <SelectTrigger className="h-8 w-auto min-w-[9rem] shrink-0 text-xs rounded-full"><SelectValue placeholder="Comparecimento" /></SelectTrigger>
+            <SelectContent>
+              {ATTENDANCE_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={filterProfessional} onValueChange={setFilterProfessional}>
+            <SelectTrigger className="h-8 w-auto min-w-[10rem] shrink-0 text-xs rounded-full"><SelectValue placeholder="Profissional" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os profissionais</SelectItem>
+              {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Resumo do que está filtrado */}
+        <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+          <div className="rounded-xl bg-green-50 dark:bg-green-900/20 py-2">
+            <p className="text-[11px] text-green-700 dark:text-green-400">Entradas</p>
+            <p className="text-sm font-bold text-green-600 tabular-nums">R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-xl bg-red-50 dark:bg-red-900/20 py-2">
+            <p className="text-[11px] text-red-600 dark:text-red-400">Saídas</p>
+            <p className="text-sm font-bold text-red-500 tabular-nums">R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-xl bg-gray-50 dark:bg-gray-800 py-2">
+            <p className="text-[11px] text-gray-500">Saldo</p>
+            <p className={`text-sm font-bold tabular-nums ${(totalIncome - totalExpense) >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+              R$ {(totalIncome - totalExpense).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+          </div>
         </div>
       </CardHeader>
 
@@ -190,66 +201,69 @@ export default function FinancialTransactionTable({
               const commission = hasCommission ? calcCommission(t.amount, prof) : 0;
               const attendance = getAttendanceStatus(t, appointments);
               const attendanceColor = attendance ? ATTENDANCE_COLORS[attendance.key]?.badge : null;
+              const income = t.type === 'income';
+              // Nome do paciente em destaque; sem paciente (ex.: despesa), a
+              // descrição vira o título e não se repete embaixo.
+              const title = pat?.full_name || t.description || '—';
+              const subtitle = pat ? t.description : null;
               return (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
-                  {/* Icon */}
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${t.type === 'income' ? 'bg-green-100' : 'bg-red-100'}`}>
-                    {t.type === 'income'
-                      ? <ArrowUpCircle className="w-4 h-4 text-green-600" />
-                      : <ArrowDownCircle className="w-4 h-4 text-red-500" />}
+                <div key={t.id} className={`flex gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors ${t.payment_status === 'cancelled' ? 'opacity-60' : ''}`}>
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${income ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                    {income
+                      ? <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                      : <ArrowDownCircle className="w-5 h-5 text-red-500" />}
                   </div>
 
-                  {/* Description + names */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{t.description || '—'}</p>
-                    <div className="flex gap-2 text-xs text-gray-500 flex-wrap">
-                      {pat && <span>👤 {pat.full_name}</span>}
-                      {prof && <span>👨‍⚕️ {prof.full_name}</span>}
-                      <span>📅 {formatDateBR(t.transaction_date)}</span>
+                    <div className="flex items-start gap-2">
+                      <p className="flex-1 min-w-0 text-[15px] font-semibold text-gray-900 dark:text-white leading-snug break-words">{title}</p>
+                      <span className={`text-[15px] font-bold whitespace-nowrap tabular-nums ${income ? 'text-green-600' : 'text-red-500'}`}>
+                        {income ? '+' : '−'} R$ {t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Status badge — quando há agendamento vinculado, mostra a
-                      situação real da sessão (não compareceu/ausência/
-                      agendado) no lugar de "Pendente" genérico */}
-                  <Badge className={`text-xs ${attendanceColor || STATUS_COLORS[t.payment_status] || 'bg-gray-100 text-gray-500'}`}>
-                    {attendance ? attendance.label : (t.payment_status === 'paid' ? 'Pago' : t.payment_status === 'pending' ? 'Pendente' : 'Cancelado')}
-                  </Badge>
-
-                  {/* Value */}
-                  <div className="w-32 text-right flex-shrink-0">
-                    <span className={`text-sm font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-500'}`}>
-                      {t.type === 'income' ? '+' : '-'} R$ {t.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                    {hasCommission && (
-                      <p className="text-xs text-purple-600 dark:text-purple-400">
-                        Comissão: R$ {commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({prof.default_commission_percentage}%)
-                      </p>
+                    {subtitle && (
+                      <p className="text-sm text-gray-600 dark:text-gray-300 leading-snug break-words mt-0.5">{subtitle}</p>
                     )}
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-1 flex-shrink-0">
-                    {t.payment_status === 'pending' && !attendance && onConfirmPayment && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        title="Confirmar pagamento"
-                        onClick={() => {
-                          setConfirmMethod(t.payment_method && t.payment_method !== 'pending' ? t.payment_method : 'pix');
-                          setConfirmingTx(t);
-                        }}
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                    <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                      <span>{formatDateBR(t.transaction_date)}</span>
+                      {prof && <span className="truncate max-w-[60%]">{prof.full_name}</span>}
+                      {/* Status — quando há agendamento vinculado, mostra a
+                          situação real da sessão (não compareceu/ausência/
+                          agendado) no lugar de "Pendente" genérico */}
+                      <Badge className={`text-[11px] font-medium ${attendanceColor || STATUS_COLORS[t.payment_status] || 'bg-gray-100 text-gray-500'}`}>
+                        {attendance ? attendance.label : (t.payment_status === 'paid' ? 'Pago' : t.payment_status === 'pending' ? 'Pendente' : 'Cancelado')}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center gap-1 mt-1">
+                      {hasCommission ? (
+                        <p className="flex-1 text-xs text-purple-600 dark:text-purple-400">
+                          Comissão: R$ {commission.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ({prof.default_commission_percentage}%)
+                        </p>
+                      ) : <span className="flex-1" />}
+                      {t.payment_status === 'pending' && !attendance && onConfirmPayment && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-green-600 text-xs"
+                          title="Confirmar pagamento"
+                          onClick={() => {
+                            setConfirmMethod(t.payment_method && t.payment_method !== 'pending' ? t.payment_method : 'pix');
+                            setConfirmingTx(t);
+                          }}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1" /> Receber
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar" onClick={() => onEdit(t)}>
+                        <Edit className="w-4 h-4 text-gray-400" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(t)}>
-                      <Edit className="w-3.5 h-3.5 text-gray-400" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { if (confirm('Excluir transação?')) onDelete(t.id); }}>
-                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                    </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Excluir" onClick={() => { if (confirm('Excluir transação?')) onDelete(t.id); }}>
+                        <Trash2 className="w-4 h-4 text-red-400" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

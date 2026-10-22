@@ -102,12 +102,13 @@ export default function FinancialPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-4 md:p-6">
+    <div className="min-h-screen bg-app p-3 md:p-6">
       <div className="max-w-7xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
+          {/* No celular o título já aparece no topo do app */}
+          <div className="hidden md:block">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Financeiro</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">Controle completo de receitas, despesas e relatórios</p>
           </div>

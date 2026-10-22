@@ -1,19 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle, ChevronDown, Check } from "lucide-react";
+import { Save, X, AlertCircle, Package, CheckCircle, MessageCircle, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Room, Appointment, ScheduleBlock, ServicePackage, Patient } from "@/entities/all";
 import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
 import { findMatchingScheduleBlock } from "@/utils/scheduleBlocks";
 import AppointmentMedicalRecordSection from "./AppointmentMedicalRecordSection";
+import PatientPicker from "./PatientPicker";
+
+// Formulário em grupos de linhas (estilo Master UP): rótulo à esquerda,
+// valor à direita, campos sem borda dentro de blocos brancos.
+const BARE_INPUT = "border-0 shadow-none bg-transparent text-right px-0 h-11 text-[15px] focus-visible:ring-0 w-auto min-w-0 flex-1";
+const BARE_TRIGGER = "border-0 shadow-none bg-transparent justify-end gap-2 px-0 h-11 text-[15px] focus:ring-0 w-auto max-w-[65%]";
+
+function FormGroup({ children }) {
+  return <div className="bg-white dark:bg-gray-900 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">{children}</div>;
+}
+
+function FormRow({ label, hint, children }) {
+  return (
+    <div className="px-4">
+      <div className="flex items-center gap-3 min-h-[2.75rem]">
+        <span className="text-[15px] text-gray-800 dark:text-gray-100 whitespace-nowrap">{label}</span>
+        <div className="flex-1 flex justify-end min-w-0">{children}</div>
+      </div>
+      {hint && <p className="text-xs text-gray-500 pb-2 -mt-1 text-right">{hint}</p>}
+    </div>
+  );
+}
 
 export default function AppointmentForm({ 
   appointment, 
@@ -31,15 +49,13 @@ export default function AppointmentForm({
   const [selectedPackage, setSelectedPackage] = useState(null);
   const [cycleAlert, setCycleAlert] = useState(null); // { package, patient }
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [patientSearch, setPatientSearch] = useState("");
-  const [patientPickerOpen, setPatientPickerOpen] = useState(false);
 
   const [formData, setFormData] = useState(() => {
     if (appointment) {
       return { ...appointment, room_id: appointment.room_id || "", package_id: appointment.package_id || "" };
     } else if (selectedSlot) {
       return {
-        patient_id: "",
+        patient_id: selectedSlot.patientId || "",
         professional_id: selectedSlot.professionalId || "",
         appointment_date: selectedSlot.date || new Date().toISOString().split('T')[0],
         appointment_time: selectedSlot.time || "09:00",
@@ -167,6 +183,10 @@ export default function AppointmentForm({
       alert(`❌ Não é possível agendar neste horário${period}.\nMotivo: ${holidayBlock.reason || 'agenda bloqueada'}`);
       return;
     }
+    if (!formData.patient_id) {
+      alert("Selecione o paciente.");
+      return;
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -222,21 +242,25 @@ export default function AppointmentForm({
     ? { used: selectedPackage.sessions_used || 0, total: selectedPackage.sessions_per_cycle || selectedPackage.max_sessions || 0 }
     : null;
 
-  const selectedPatient = patients.find(p => p.id === formData.patient_id);
-
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-        <Card className="bg-white shadow-lg mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-blue-500" />
-              {appointment ? 'Editar Agendamento' : 'Novo Agendamento'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-app rounded-2xl mb-6 overflow-hidden md:shadow-lg md:border md:border-gray-100 dark:md:border-gray-800">
+          <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+            <button type="button" onClick={onCancel} className="p-1 -ml-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Cancelar">
+              <X className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+            </button>
+            <h2 className="flex-1 text-lg font-semibold text-gray-900 dark:text-white">
+              {appointment ? 'Editar agendamento' : 'Novo agendamento'}
+            </h2>
+            <button type="submit" form="appointment-form" disabled={isSubmitting} className="p-1 -mr-1 rounded-full text-brand disabled:opacity-40" aria-label="Salvar">
+              <Check className="w-7 h-7" />
+            </button>
+          </div>
+
+          <div className="p-3 space-y-3">
             {holidayBlock && (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 mb-4">
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3">
                 <AlertCircle className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-medium">
                   Agenda bloqueada{holidayBlock.start_time && holidayBlock.end_time ? ` (${holidayBlock.start_time} às ${holidayBlock.end_time})` : ''}
@@ -244,115 +268,65 @@ export default function AppointmentForm({
                 </span>
               </div>
             )}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Paciente *</Label>
-                  {/* Popover+Command em vez de Select: o Select do Radix fecha no
-                      resize da janela, e no Android abrir o teclado da busca
-                      redimensiona a janela — a lista sumia antes de escolher. */}
-                  <Popover
-                    open={patientPickerOpen}
-                    onOpenChange={(open) => { setPatientPickerOpen(open); if (!open) setPatientSearch(""); }}
-                  >
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        role="combobox"
-                        aria-expanded={patientPickerOpen}
-                        className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                      >
-                        <span className={`line-clamp-1 ${selectedPatient ? '' : 'text-muted-foreground'}`}>
-                          {selectedPatient ? selectedPatient.full_name : 'Selecione o paciente'}
-                        </span>
-                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
-                      <Command shouldFilter={false}>
-                        <CommandInput
-                          value={patientSearch}
-                          onValueChange={setPatientSearch}
-                          placeholder="Buscar paciente..."
-                        />
-                        <CommandList>
-                          <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
-                          {patients
-                            .filter(p => p.full_name?.toLowerCase().includes(patientSearch.toLowerCase()))
-                            .map(p => (
-                              <CommandItem
-                                key={p.id}
-                                value={p.id}
-                                onSelect={() => { handleChange('patient_id', p.id); setPatientPickerOpen(false); setPatientSearch(""); }}
-                              >
-                                <Check className={`mr-2 h-4 w-4 ${formData.patient_id === p.id ? 'opacity-100' : 'opacity-0'}`} />
-                                {p.full_name}
-                              </CommandItem>
-                            ))}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Profissional *</Label>
+            <form id="appointment-form" onSubmit={handleSubmit} className="space-y-3">
+              <FormGroup>
+                <FormRow label="Paciente">
+                  {/* Tela cheia própria (não Select/Popover): no Android o teclado
+                      da busca redimensiona a janela e fechava a lista. */}
+                  <PatientPicker
+                    bare
+                    patients={patients}
+                    value={formData.patient_id}
+                    onChange={(id) => handleChange('patient_id', id)}
+                  />
+                </FormRow>
+                <FormRow label="Profissional">
                   <Select value={formData.professional_id} onValueChange={(v) => handleChange('professional_id', v)} required>
-                    <SelectTrigger><SelectValue placeholder="Selecione o profissional" /></SelectTrigger>
+                    <SelectTrigger className={BARE_TRIGGER}><SelectValue placeholder="Selecionar" /></SelectTrigger>
                     <SelectContent>
                       {professionals.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name} - {p.specialty}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
+                </FormRow>
+              </FormGroup>
 
-                <div className="space-y-2">
-                  <Label>Data *</Label>
-                  <Input type="date" value={formData.appointment_date} onChange={(e) => handleChange('appointment_date', e.target.value)} required />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Horário *</Label>
-                  <Input type="time" value={formData.appointment_time} onChange={(e) => handleChange('appointment_time', e.target.value)} required />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Valor da Consulta (R$)</Label>
-                  <Input type="number" min="0" step="0.01" value={formData.value || ''} onChange={(e) => handleChange('value', parseFloat(e.target.value) || 0)} placeholder="0.00" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Duração (minutos)</Label>
+              <FormGroup>
+                <FormRow label="Data">
+                  <Input type="date" className={BARE_INPUT} value={formData.appointment_date} onChange={(e) => handleChange('appointment_date', e.target.value)} required />
+                </FormRow>
+                <FormRow label="Começa">
+                  <Input type="time" className={BARE_INPUT} value={formData.appointment_time} onChange={(e) => handleChange('appointment_time', e.target.value)} required />
+                </FormRow>
+                <FormRow label="Duração (min)">
                   <Input
                     type="number"
                     min="5"
                     step="5"
+                    inputMode="numeric"
+                    className={BARE_INPUT}
                     value={formData.duration ?? ''}
                     onChange={(e) => handleChange('duration', parseInt(e.target.value) || 0)}
                     placeholder="60"
                   />
-                </div>
+                </FormRow>
+              </FormGroup>
 
-                <div className="space-y-2">
-                  <Label>Sala *</Label>
+              <FormGroup>
+                <FormRow label="Sala" hint={
+                  availableRooms.length === 0 && !isCheckingRooms
+                    ? <span className="inline-flex items-center gap-1 text-red-600"><AlertCircle className="w-3.5 h-3.5" />Todas as salas estão ocupadas neste horário</span>
+                    : availableRooms.length > 0 ? `${availableRooms.length} sala(s) disponível(is)` : null
+                }>
                   <Select value={formData.room_id} onValueChange={(v) => handleChange('room_id', v)} required disabled={isCheckingRooms}>
-                    <SelectTrigger><SelectValue placeholder={isCheckingRooms ? "Verificando..." : "Selecione a sala"} /></SelectTrigger>
+                    <SelectTrigger className={BARE_TRIGGER}><SelectValue placeholder={isCheckingRooms ? "Verificando..." : "Selecionar"} /></SelectTrigger>
                     <SelectContent>
                       {availableRooms.map(r => <SelectItem key={r.id} value={r.id}>{r.room_name} - {r.room_type}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                  {availableRooms.length === 0 && !isCheckingRooms && (
-                    <div className="flex items-center gap-2 text-sm text-red-600 mt-1">
-                      <AlertCircle className="w-4 h-4" /><span>Todas as salas estão ocupadas neste horário</span>
-                    </div>
-                  )}
-                  {availableRooms.length > 0 && <p className="text-xs text-gray-500 mt-1">{availableRooms.length} sala(s) disponível(is)</p>}
-                </div>
-
-                {/* Seleção de Plano */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-1"><Package className="w-4 h-4 text-purple-500" /> Plano do Paciente</Label>
+                </FormRow>
+                <FormRow label={<span className="flex items-center gap-1"><Package className="w-4 h-4 text-purple-500" /> Plano</span>}>
                   <Select value={formData.package_id || "none"} onValueChange={(v) => handleChange('package_id', v === "none" ? "" : v)} disabled={!formData.patient_id}>
-                    <SelectTrigger><SelectValue placeholder={formData.patient_id ? "Selecione o plano (opcional)" : "Selecione o paciente primeiro"} /></SelectTrigger>
+                    <SelectTrigger className={BARE_TRIGGER}><SelectValue placeholder={formData.patient_id ? "Opcional" : "Escolha o paciente"} /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sem plano vinculado</SelectItem>
                       {patientPackages.map(pkg => (
@@ -362,55 +336,66 @@ export default function AppointmentForm({
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedPackage && sessionsProgress && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mt-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-purple-800">{selectedPackage.plan_name}</span>
-                        <Badge className={`text-xs ${sessionsProgress.total > 0 && sessionsProgress.used >= sessionsProgress.total - 1 ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
-                          {sessionsProgress.used}/{sessionsProgress.total || '∞'} sessões
-                        </Badge>
-                      </div>
-                      {sessionsProgress.total > 0 && (
-                        <div className="w-full bg-purple-200 rounded-full h-2">
-                          <div
-                            className="bg-purple-600 h-2 rounded-full transition-all"
-                            style={{ width: `${Math.min(100, (sessionsProgress.used / sessionsProgress.total) * 100)}%` }}
-                          />
-                        </div>
-                      )}
-                      {sessionsProgress.total > 0 && sessionsProgress.total - sessionsProgress.used === 1 && (
-                        <p className="text-xs text-orange-600 mt-1 font-medium">⚠️ Esta é a última sessão do ciclo!</p>
-                      )}
+                </FormRow>
+                {selectedPackage && sessionsProgress && (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-purple-800 dark:text-purple-300">{selectedPackage.plan_name}</span>
+                      <Badge className={`text-xs ${sessionsProgress.total > 0 && sessionsProgress.used >= sessionsProgress.total - 1 ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'}`}>
+                        {sessionsProgress.used}/{sessionsProgress.total || '∞'} sessões
+                      </Badge>
                     </div>
-                  )}
-                </div>
-              </div>
+                    {sessionsProgress.total > 0 && (
+                      <div className="w-full bg-purple-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-600 h-2 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (sessionsProgress.used / sessionsProgress.total) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    {sessionsProgress.total > 0 && sessionsProgress.total - sessionsProgress.used === 1 && (
+                      <p className="text-xs text-orange-600 mt-1 font-medium">⚠️ Esta é a última sessão do ciclo!</p>
+                    )}
+                  </div>
+                )}
+              </FormGroup>
 
-              <div className="space-y-2">
-                <Label>Tipo de Serviço</Label>
-                <Input value={formData.service_type} onChange={(e) => handleChange('service_type', e.target.value)} placeholder="Ex: Fisioterapia Ortopédica, RPG, Pilates..." />
-              </div>
+              <FormGroup>
+                <FormRow label="Serviço">
+                  <Input className={BARE_INPUT} value={formData.service_type} onChange={(e) => handleChange('service_type', e.target.value)} placeholder="Ex: Pilates, RPG..." />
+                </FormRow>
+                <FormRow label="Valor (R$)">
+                  <Input type="number" min="0" step="0.01" inputMode="decimal" className={BARE_INPUT} value={formData.value || ''} onChange={(e) => handleChange('value', parseFloat(e.target.value) || 0)} placeholder="0,00" />
+                </FormRow>
+              </FormGroup>
 
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea value={formData.notes} onChange={(e) => handleChange('notes', e.target.value)} placeholder="Observações sobre o agendamento..." rows={3} />
-              </div>
+              <FormGroup>
+                <Textarea
+                  value={formData.notes}
+                  onChange={(e) => handleChange('notes', e.target.value)}
+                  placeholder="Adicionar observação"
+                  rows={3}
+                  className="border-0 shadow-none focus-visible:ring-0 rounded-xl px-4 py-3 text-[15px] bg-transparent"
+                />
+              </FormGroup>
 
               {/* Só faz sentido pra um agendamento que já existe (tem id pra
                   vincular o prontuário via appointment_id) — permite inserir
                   ou corrigir o prontuário (inclusive os aparelhos usados) de
                   uma consulta já finalizada, sem depender de status. */}
               {appointment?.id && (
-                <AppointmentMedicalRecordSection appointment={{ ...appointment, ...formData, id: appointment.id }} />
+                <div className="bg-white dark:bg-gray-900 rounded-xl p-3">
+                  <AppointmentMedicalRecordSection appointment={{ ...appointment, ...formData, id: appointment.id }} />
+                </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onCancel}><X className="w-4 h-4 mr-2" />Cancelar</Button>
-                <Button type="submit" disabled={isSubmitting} className="bg-blue-600 hover:bg-blue-700"><Save className="w-4 h-4 mr-2" />{isSubmitting ? 'Salvando...' : (appointment ? 'Atualizar' : 'Agendar')}</Button>
+              <div className="flex justify-end gap-3 pt-1">
+                <Button type="button" variant="outline" className="rounded-full" onClick={onCancel}><X className="w-4 h-4 mr-2" />Cancelar</Button>
+                <Button type="submit" disabled={isSubmitting} className="rounded-full bg-brand hover:opacity-90 text-white"><Save className="w-4 h-4 mr-2" />{isSubmitting ? 'Salvando...' : (appointment ? 'Atualizar' : 'Agendar')}</Button>
               </div>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
 
       {/* Modal de ciclo encerrado */}

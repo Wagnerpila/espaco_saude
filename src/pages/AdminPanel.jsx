@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Patient, Professional, Appointment } from "@/entities/all";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Users,
   UserCheck,
@@ -34,6 +33,7 @@ export default function AdminPanel() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -64,278 +64,134 @@ export default function AdminPanel() {
     setIsLoading(false);
   };
 
-  const quickActions = [
+  // Configurações agrupadas em cartões com ícone colorido (estilo Master UP).
+  // Itens com `href` levam a outra página; com `action` abrem uma ferramenta
+  // aqui mesmo.
+  const settingsGroups = [
     {
-      title: "Gerenciar Pacientes",
-      description: "Visualizar, editar e adicionar pacientes",
-      icon: Users,
-      href: "/Patients",
-      color: "bg-blue-500"
+      title: "Clínica",
+      items: [
+        { title: "Serviços, planos e salas", icon: Settings, href: "/ServiceConfiguration", color: "#f59e0b" },
+        { title: "Profissionais e horários", icon: UserCheck, href: "/Professionals", color: "#3b82f6" },
+        { title: "Cadastros clínicos", subtitle: "Prontuários, aparelhos e exercícios", icon: Activity, href: "/ClinicalRegistration", color: "#ec4899" },
+        { title: "Feriados e bloqueio de agenda", icon: CalendarOff, action: "holidays", color: "#ef4444" },
+      ],
     },
     {
-      title: "Gerenciar Profissionais",
-      description: "Controlar acesso e permissões",
-      icon: UserCheck,
-      href: "/Professionals",
-      color: "bg-green-500"
+      title: "Mensagens ao paciente",
+      items: [
+        { title: "Modelos de mensagens", subtitle: "Textos automáticos do WhatsApp", icon: FileText, action: "whatsapp-templates", color: "#22c55e" },
+        { title: "Enviar mensagem de teste", icon: MessageCircle, action: "whatsapp", color: "#14b8a6" },
+      ],
     },
     {
-      title: "Configurar Serviços",
-      description: "Cadastrar planos, valores e salas",
-      icon: Settings,
-      href: "/ServiceConfiguration",
-      color: "bg-purple-500"
+      title: "Acesso",
+      items: [
+        { title: "Usuários", icon: Users, href: "/UserManagement", color: "#6366f1" },
+        { title: "Permissões", icon: Shield, href: "/UserPermissions", color: "#64748b" },
+      ],
     },
     {
-      title: "Cadastros Clínicos",
-      description: "Prontuários, aparelhos e exercícios",
-      icon: Activity,
-      href: "/ClinicalRegistration",
-      color: "bg-pink-500"
+      title: "Atalhos",
+      items: [
+        { title: "Pacientes", icon: Users, href: "/Patients", color: "#0ea5e9" },
+        { title: "Agenda geral", icon: Calendar, href: "/Schedule", color: "#a855f7" },
+        { title: "Financeiro", icon: Database, href: "/Financial", color: "#f97316" },
+      ],
     },
-    {
-      title: "Agenda Geral",
-      description: "Visualizar todos os agendamentos",
-      icon: Calendar,
-      href: "/Schedule",
-      color: "bg-pink-500"
-    },
-    {
-      title: "Controle Financeiro",
-      description: "Relatórios e transações",
-      icon: Database,
-      href: "/Financial",
-      color: "bg-orange-500"
-    },
-    {
-      title: "Enviar Mensagens WhatsApp",
-      description: "Enviar mensagens para pacientes (teste)",
-      icon: MessageCircle,
-      action: 'whatsapp',
-      color: "bg-green-500"
-    },
-    {
-      title: "Editar Mensagens do Bot",
-      description: "Personalizar os textos automáticos do WhatsApp",
-      icon: FileText,
-      action: 'whatsapp-templates',
-      color: "bg-teal-500"
-    },
-    {
-      title: "Feriados & Bloqueio de Agenda",
-      description: "Bloquear agenda dos profissionais e corrigir agendamentos em feriados",
-      icon: CalendarOff,
-      action: 'holidays',
-      color: "bg-red-500"
-    }
   ];
 
   if (isLoading) {
     return (
-      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-64"></div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {Array(4).fill(0).map((_, i) => (
-                <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
-              ))}
-            </div>
-          </div>
+      <div className="p-3 md:p-6 bg-app min-h-screen">
+        <div className="max-w-2xl mx-auto animate-pulse space-y-3">
+          {Array(4).fill(0).map((_, i) => <div key={i} className="h-28 bg-white dark:bg-gray-900 rounded-2xl" />)}
         </div>
       </div>
     );
   }
 
-  if (activeTab === 'whatsapp') {
-    return (
-      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 font-medium"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            Voltar ao Painel
-          </button>
-          <WhatsAppMessageSender />
-        </div>
+  const subPage = (title, content) => (
+    <div className="p-3 md:p-6 bg-app min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className="flex items-center gap-2 text-brand mb-4 font-medium"
+        >
+          <ChevronRight className="w-4 h-4 rotate-180" />
+          Configurações
+        </button>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{title}</h2>
+        {content}
       </div>
-    );
-  }
+    </div>
+  );
 
+  if (activeTab === 'whatsapp') return subPage("Enviar mensagem de teste", <WhatsAppMessageSender />);
   if (activeTab === 'whatsapp-templates') {
-    return (
-      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 font-medium"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            Voltar ao Painel
-          </button>
-          <div className="space-y-6">
-            <WhatsAppMessageTemplates />
-            <AppointmentConfirmationOverrides />
-          </div>
-        </div>
+    return subPage("Modelos de mensagens", (
+      <div className="space-y-6">
+        <WhatsAppMessageTemplates />
+        <AppointmentConfirmationOverrides />
       </div>
-    );
+    ));
   }
-
-  if (activeTab === 'holidays') {
-    return (
-      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mb-6 font-medium"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            Voltar ao Painel
-          </button>
-          <HolidayScheduleManager />
-        </div>
-      </div>
-    );
-  }
+  if (activeTab === 'holidays') return subPage("Feriados e bloqueio de agenda", <HolidayScheduleManager />);
 
   return (
-    <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-600 rounded-xl flex items-center justify-center">
+    <div className="p-3 md:p-6 bg-app min-h-screen">
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Resumo da clínica */}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-brand-gradient flex items-center justify-center">
               <Shield className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Painel Administrativo</h1>
-              <p className="text-gray-600 dark:text-gray-400">Controle total do sistema Espaço Saúde</p>
+              <p className="font-semibold text-gray-900 dark:text-white">Clínica Espaço Saúde</p>
+              <p className="text-sm text-gray-500">Configurações do sistema</p>
             </div>
+          </div>
+          <div className="grid grid-cols-4 mt-4 text-center divide-x divide-gray-100 dark:divide-gray-800">
+            {[
+              { label: "pacientes", value: stats.totalPatients },
+              { label: "profission.", value: stats.totalProfessionals },
+              { label: "agendam.", value: stats.totalAppointments },
+              { label: "pendentes", value: stats.pendingAppointments },
+            ].map(s => (
+              <div key={s.label}>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white tabular-nums">{s.value}</p>
+                <p className="text-xs text-gray-500">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100">Total Usuários</p>
-                  <p className="text-3xl font-bold">{stats.totalUsers}</p>
-                </div>
-                <Users className="w-12 h-12 text-blue-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100">Pacientes</p>
-                  <p className="text-3xl font-bold">{stats.totalPatients}</p>
-                </div>
-                <Users className="w-12 h-12 text-green-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100">Profissionais</p>
-                  <p className="text-3xl font-bold">{stats.totalProfessionals}</p>
-                </div>
-                <UserCheck className="w-12 h-12 text-purple-200" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100">Agendamentos</p>
-                  <p className="text-3xl font-bold">{stats.totalAppointments}</p>
-                </div>
-                <Calendar className="w-12 h-12 text-orange-200" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Ações Rápidas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {quickActions.map((action, index) => (
-                <Card key={index} className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700">
-                <CardContent className="p-6" onClick={() => action.href ? window.location.href = action.href : action.action && setActiveTab(action.action)}>
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${action.color} bg-opacity-20`}>
-                      <action.icon className={`w-6 h-6 ${action.color.replace('bg-', 'text-')}`} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{action.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">{action.description}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        {settingsGroups.map(group => (
+          <div key={group.title}>
+            <p className="px-4 pb-1.5 text-xs uppercase tracking-wider text-gray-500">{group.title}</p>
+            <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden">
+              {group.items.map((item, i) => (
+                <button
+                  key={item.title}
+                  onClick={() => item.href ? navigate(item.href) : setActiveTab(item.action)}
+                  className="w-full flex items-center gap-3 pl-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <span className="w-8 h-8 rounded-full flex items-center justify-center text-white flex-shrink-0" style={{ background: item.color }}>
+                    <item.icon className="w-4 h-4" />
+                  </span>
+                  <span className={`flex-1 flex items-center gap-2 pr-4 py-3 min-w-0 ${i > 0 ? "border-t border-gray-100 dark:border-gray-800" : ""}`}>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[15px] text-gray-900 dark:text-white">{item.title}</span>
+                      {item.subtitle && <span className="block text-xs text-gray-500 truncate">{item.subtitle}</span>}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                  </span>
+                </button>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              Atividade Recente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.pendingAppointments > 0 && (
-                <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-yellow-600" />
-                    <div>
-                      <p className="font-medium dark:text-white">Agendamentos Pendentes</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{stats.pendingAppointments} agendamentos aguardando confirmação</p>
-                    </div>
-                  </div>
-                  <Badge className="bg-yellow-100 text-yellow-800">
-                    {stats.pendingAppointments}
-                  </Badge>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="font-medium dark:text-white">Sistema Operacional</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Todos os módulos funcionando corretamente</p>
-                  </div>
-                </div>
-                <Badge className="bg-green-100 text-green-800">
-                  ✓ OK
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
     </div>
   );

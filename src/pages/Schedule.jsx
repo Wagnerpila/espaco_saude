@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Appointment, Patient, Professional, Room } from "@/entities/all";
 // Added MessageCircle, kept Phone as per outline
-import { format, addDays, subDays, startOfWeek } from "date-fns";
+import { format, addDays, subDays, startOfWeek, parseISO, isValid } from "date-fns";
+import { Plus } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { exportScheduleToPdf } from "../utils/scheduleExport";
@@ -9,6 +11,7 @@ import { exportScheduleToPdf } from "../utils/scheduleExport";
 import ScheduleHeader from "../components/schedule/ScheduleHeader";
 import DayView from "../components/schedule/DayView";
 import TimeGridView from "../components/schedule/TimeGridView";
+import AgendaListView from "../components/schedule/AgendaListView";
 import WeekView from "../components/schedule/WeekView";
 import AppointmentForm from "../components/schedule/AppointmentForm";
 import ConfirmNewAppointmentDialog from "../components/schedule/ConfirmNewAppointmentDialog";
@@ -18,17 +21,47 @@ export default function SchedulePage() {
   const [patients, setPatients] = useState([]);
   const [professionals, setProfessionals] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState("day");
-  const [showForm, setShowForm] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // ?date=yyyy-MM-dd abre a agenda naquele dia (links do painel) e ?novo=1
+  // já abre o formulário de novo agendamento.
+  const [currentDate, setCurrentDate] = useState(() => {
+    const d = searchParams.get("date") ? parseISO(searchParams.get("date")) : null;
+    return d && isValid(d) ? d : new Date();
+  });
+  const [viewMode, setViewMode] = useState("list");
+  const [showForm, setShowForm] = useState(() => searchParams.get("novo") === "1");
   const [editingAppointment, setEditingAppointment] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  // ?paciente=ID (botão "Agendar" da ficha do paciente) já escolhe o paciente.
+  const [selectedSlot, setSelectedSlot] = useState(() =>
+    searchParams.get("paciente") ? { patientId: searchParams.get("paciente") } : null
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [appointmentToConfirm, setAppointmentToConfirm] = useState(null);
 
+  // ?editar=ID (botão "Editar" do cartão da consulta no painel) abre a edição
+  // assim que os agendamentos carregam.
+  const [editIdFromUrl] = useState(() => searchParams.get("editar"));
+
   useEffect(() => {
     loadData();
+    if (["novo", "date", "paciente", "editar"].some(k => searchParams.has(k))) setSearchParams({}, { replace: true });
   }, []);
+
+  useEffect(() => {
+    if (!editIdFromUrl || appointments.length === 0) return;
+    const apt = appointments.find(a => a.id === editIdFromUrl);
+    if (apt && !showForm) {
+      setCurrentDate(parseISO(apt.appointment_date));
+      handleEditAppointment(apt);
+    }
+  }, [appointments]);
+
+  const openNewAppointment = () => {
+    setEditingAppointment(null);
+    setSelectedSlot(null);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -106,11 +139,13 @@ export default function SchedulePage() {
   const handleTimeSlotClick = (date, time, professionalId) => {
     setSelectedSlot({ date, time, professionalId });
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleEditAppointment = (appointment) => {
     setEditingAppointment(appointment);
     setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleExportPdf = () => {
@@ -119,25 +154,26 @@ export default function SchedulePage() {
 
   const navigateDate = (direction) => {
     if (direction === "prev") {
-      setCurrentDate(viewMode === "day" ? subDays(currentDate, 1) : subDays(currentDate, 7));
+      setCurrentDate(viewMode === "week" ? subDays(currentDate, 7) : subDays(currentDate, 1));
     } else {
-      setCurrentDate(viewMode === "day" ? addDays(currentDate, 1) : addDays(currentDate, 7));
+      setCurrentDate(viewMode === "week" ? addDays(currentDate, 7) : addDays(currentDate, 1));
     }
   };
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-purple-50 via-orange-50 to-pink-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 min-h-screen">
+    <div className="md:p-6 bg-app min-h-screen">
       <div className="max-w-7xl mx-auto">
         <ScheduleHeader
           currentDate={currentDate}
           viewMode={viewMode}
           setViewMode={setViewMode}
           navigateDate={navigateDate}
-          onNewAppointment={() => setShowForm(true)}
+          onNewAppointment={openNewAppointment}
           onExportPdf={handleExportPdf}
         />
 
         {showForm && (
+          <div className="p-3 md:p-0">
           <AppointmentForm
             appointment={editingAppointment}
             selectedSlot={selectedSlot}
@@ -150,6 +186,7 @@ export default function SchedulePage() {
               setSelectedSlot(null);
             }}
           />
+          </div>
         )}
 
         {appointmentToConfirm && (
@@ -162,7 +199,20 @@ export default function SchedulePage() {
           />
         )}
 
-        {viewMode === "day" ? (
+        {viewMode === "list" ? (
+          <AgendaListView
+            date={currentDate}
+            onSelectDate={setCurrentDate}
+            appointments={appointments}
+            professionals={professionals}
+            patients={patients}
+            rooms={rooms}
+            isLoading={isLoading}
+            onTimeSlotClick={handleTimeSlotClick}
+            onEditAppointment={handleEditAppointment}
+            onChanged={loadData}
+          />
+        ) : viewMode === "day" ? (
           <TimeGridView
             date={currentDate}
             appointments={appointments}
@@ -188,6 +238,18 @@ export default function SchedulePage() {
           />
         )}
       </div>
+
+      {/* Botão flutuante de novo agendamento no celular */}
+      {!showForm && (
+        <button
+          onClick={openNewAppointment}
+          className="md:hidden fixed right-4 z-30 w-14 h-14 rounded-full bg-brand text-white shadow-lg flex items-center justify-center"
+          style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+          aria-label="Novo agendamento"
+        >
+          <Plus className="w-7 h-7" />
+        </button>
+      )}
     </div>
   );
 }

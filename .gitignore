@@ -41,3 +41,13 @@ server/uploads/
 
 # pacote gerado a cada deploy (ver fluxo tar+scp em DEPLOY.md) — não versionar
 espaco-saude.tar.gz
+
+# Android (TWA/Bubblewrap): builds e chaves nunca no git
+*.keystore
+*.jks
+*.apk
+*.aab
+*.idsig
+android/**/build/
+android/.gradle/
+android/local.properties

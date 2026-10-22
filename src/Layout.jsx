@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Calendar, Users, DollarSign, FileText, Settings, LayoutDashboard,
-  UserPlus, Bot, Shield, Package, Stethoscope, Moon, Sun, LogOut, ChevronRight, MessageCircle
+  UserPlus, Bot, Shield, Package, Stethoscope, Moon, Sun, LogOut, ChevronRight, MessageCircle, Menu
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -15,9 +15,32 @@ import { User } from "@/entities/User";
 import { Patient, Professional } from "@/entities/all";
 import { usePendingBillingConfirmations } from "@/hooks/usePendingBillingConfirmations";
 import NotificationSystem from "./components/notifications/NotificationSystem";
-import BottomNav from "./components/layout/BottomNav";
+import AppDrawer from "./components/layout/AppDrawer";
 import PageTransition from "./components/layout/PageTransition";
 import UserProfileModal from "./components/layout/UserProfileModal";
+
+const LOGO_URL = "https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b73e93560562b92900ccee/37d55f318_espaosade1.png";
+
+// Título mostrado no topo do celular. O Dashboard mostra o nome do usuário,
+// como no Master UP; páginas fora da lista caem no nome da clínica.
+const PAGE_TITLES = {
+  Schedule: "Agenda",
+  Patients: "Pacientes",
+  MyPatients: "Meus Pacientes",
+  PackageServices: "Atendimentos e Serviços",
+  MedicalRecords: "Prontuários",
+  Professionals: "Profissionais",
+  ClinicalRegistration: "Cadastros Clínicos",
+  Financial: "Financeiro",
+  ProfessionalFinancial: "Financeiro",
+  Commissions: "Comissionamento",
+  AdminPanel: "Configurações",
+  UserManagement: "Usuários",
+  UserPermissions: "Permissões",
+  ChatAssistant: "Assistente IA",
+  WhatsAppConversations: "WhatsApp Sofia",
+  ServiceConfiguration: "Configuração de Serviços",
+};
 
 // ── Categories ──────────────────────────────────────────────
 const ADMIN_NAV = [
@@ -48,7 +71,7 @@ const ADMIN_NAV = [
   {
     category: "Administração",
     items: [
-      { title: "Painel Admin",       url: createPageUrl("AdminPanel"),       icon: Settings },
+      { title: "Configurações",      url: createPageUrl("AdminPanel"),       icon: Settings },
       { title: "Usuários",           url: createPageUrl("UserManagement"),   icon: Users },
       { title: "Permissões",         url: createPageUrl("UserPermissions"),  icon: Shield },
       { title: "Assistente IA",      url: createPageUrl("ChatAssistant"),    icon: Bot },
@@ -103,7 +126,7 @@ const getNavigationItems = async (userType, userEmail) => {
   if (finItems.length) filtered.push({ category: "Financeiro", items: finItems });
 
   const adminItems = [];
-  if (p.admin_panel)      adminItems.push({ title: "Painel Admin",       url: createPageUrl("AdminPanel"),            icon: Settings });
+  if (p.admin_panel)      adminItems.push({ title: "Configurações",      url: createPageUrl("AdminPanel"),            icon: Settings });
   if (p.user_management)  adminItems.push({ title: "Usuários",           url: createPageUrl("UserManagement"),        icon: Users });
   if (p.user_management)  adminItems.push({ title: "Permissões",         url: createPageUrl("UserPermissions"),       icon: Shield });
   if (p.chat_assistant)   adminItems.push({ title: "Assistente IA",      url: createPageUrl("ChatAssistant"),         icon: Bot });
@@ -148,17 +171,18 @@ export default function Layout({ children, currentPageName }) {
   const [isLoading, setIsLoading] = React.useState(true);
   const [navigationCategories, setNavigationCategories] = React.useState([]);
   const [showProfileModal, setShowProfileModal] = React.useState(false);
+  const [showDrawer, setShowDrawer] = React.useState(false);
   const [dark, setDark] = useDarkMode();
   // Badge no menu lateral avisando cobrança(s) vencida(s) aguardando
   // confirmação do admin antes de liberar o envio por WhatsApp (ver
   // pop-up equivalente na página Financeiro).
   const { count: pendingBillingCount } = usePendingBillingConfirmations(userType === 'admin' && !isLoading);
 
-  // flat list for BottomNav
-  const navigationItems = React.useMemo(
-    () => navigationCategories.flatMap(c => c.items || []),
-    [navigationCategories]
+  const navBadges = React.useMemo(
+    () => ({ [createPageUrl("Financial")]: pendingBillingCount }),
+    [pendingBillingCount]
   );
+  const handleLogout = async () => { await User.logout(); window.location.href = '/'; };
 
   React.useEffect(() => {
     const loadUser = async () => {
@@ -266,7 +290,7 @@ export default function Layout({ children, currentPageName }) {
         <div className="bg-white dark:bg-gray-900 border-b border-blue-200 dark:border-gray-800 px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white overflow-hidden">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b73e93560562b92900ccee/37d55f318_espaosade1.png" alt="Clínica Espaço Saúde" className="w-full h-full object-contain" />
+              <img src={LOGO_URL} alt="Clínica Espaço Saúde" className="w-full h-full object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">Clínica Espaço Saúde</h1>
@@ -284,17 +308,17 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-blue-50 dark:bg-gray-950">
+      <div className="min-h-screen flex w-full bg-app">
         {/* ── Sidebar ── */}
-        <Sidebar className="border-r border-blue-200 dark:border-gray-800 hidden md:flex dark:bg-gray-900">
-          <SidebarHeader className="border-b border-blue-200 dark:border-gray-800 p-4">
+        <Sidebar className="border-r border-gray-200 dark:border-gray-800 hidden md:flex dark:bg-gray-900">
+          <SidebarHeader className="bg-brand-gradient p-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-white overflow-hidden flex-shrink-0">
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b73e93560562b92900ccee/37d55f318_espaosade1.png" alt="Logo" className="w-full h-full object-contain" />
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white overflow-hidden flex-shrink-0">
+                <img src={LOGO_URL} alt="Logo" className="w-full h-full object-contain" />
               </div>
               <div className="min-w-0">
-                <h2 className="font-bold text-gray-900 dark:text-white text-sm leading-tight">Clínica Espaço Saúde</h2>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                <h2 className="font-bold text-white text-sm leading-tight">Clínica Espaço Saúde</h2>
+                <p className="text-[10px] text-white/80">
                   {userType === 'professional' ? 'Painel Profissional' : 'Painel Administrativo'}
                 </p>
               </div>
@@ -316,11 +340,11 @@ export default function Layout({ children, currentPageName }) {
                         <SidebarMenuItem key={item.title}>
                           <SidebarMenuButton asChild className={`rounded-lg mb-0.5 transition-colors duration-150 ${
                             isActive
-                              ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                              ? 'bg-pink-50 dark:bg-pink-900/30 text-brand font-semibold'
                               : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                           }`}>
                             <Link to={item.url} className="flex items-center gap-2.5 px-3 py-1.5">
-                              <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                              <item.icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-brand' : 'text-gray-500 dark:text-gray-400'}`} />
                               <span className="text-sm font-medium flex-1">{item.title}</span>
                               {showBillingBadge && (
                                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
@@ -348,7 +372,7 @@ export default function Layout({ children, currentPageName }) {
               {/* Toggle switch */}
               <button
                 onClick={() => setDark(!dark)}
-                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${dark ? 'bg-blue-500' : 'bg-gray-300'}`}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none ${dark ? 'bg-brand' : 'bg-gray-300'}`}
               >
                 <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${dark ? 'translate-x-4' : 'translate-x-1'}`} />
               </button>
@@ -359,7 +383,7 @@ export default function Layout({ children, currentPageName }) {
               onClick={() => setShowProfileModal(true)}
               className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group"
             >
-              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-brand-gradient flex items-center justify-center">
                 {avatarUrl
                   ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                   : <span className="text-white font-semibold text-sm">{currentUser?.full_name?.[0] || 'U'}</span>
@@ -377,7 +401,7 @@ export default function Layout({ children, currentPageName }) {
             </button>
 
             <button
-              onClick={async () => { await User.logout(); window.location.href = '/'; }}
+              onClick={handleLogout}
               className="mt-1 w-full flex items-center gap-2 px-3 py-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -388,29 +412,50 @@ export default function Layout({ children, currentPageName }) {
 
         {/* ── Main ── */}
         <main className="flex-1 flex flex-col min-w-0">
-          <header className="bg-white dark:bg-gray-900 border-b border-blue-200 dark:border-gray-800 px-4 py-3 hidden md:flex items-center gap-4"
+          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 py-3 hidden md:flex items-center gap-4"
             style={{ paddingTop: `calc(0.75rem + env(safe-area-inset-top))` }}>
-            <SidebarTrigger className="hover:bg-blue-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors" />
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">Clínica Espaço Saúde</h1>
+            <SidebarTrigger className="hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-lg transition-colors" />
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{PAGE_TITLES[currentPageName] || "Clínica Espaço Saúde"}</h1>
           </header>
 
-          <header className="bg-white dark:bg-gray-900 border-b border-blue-200 dark:border-gray-800 px-4 flex items-center gap-3 md:hidden"
-            style={{ paddingTop: `calc(0.75rem + env(safe-area-inset-top))`, paddingBottom: "0.75rem" }}>
-            <div className="w-8 h-8 rounded-lg overflow-hidden">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b73e93560562b92900ccee/37d55f318_espaosade1.png" alt="" className="w-full h-full object-contain" />
-            </div>
-            <h1 className="text-base font-semibold text-gray-900 dark:text-white">Clínica Espaço Saúde</h1>
+          {/* Topo no celular (estilo Master UP): logo, título centralizado e menu */}
+          <header className="sticky top-0 z-40 bg-brand-gradient text-white px-4 flex items-center gap-3 md:hidden shadow-sm"
+            style={{ paddingTop: `calc(0.6rem + env(safe-area-inset-top))`, paddingBottom: "0.6rem" }}>
+            <button onClick={() => setShowProfileModal(true)} className="w-10 h-10 rounded-full bg-white overflow-hidden flex-shrink-0" aria-label="Meu perfil">
+              <img src={LOGO_URL} alt="" className="w-full h-full object-contain" />
+            </button>
+            <h1 className="flex-1 text-center text-[17px] font-semibold truncate">
+              {currentPageName === "Dashboard" ? (currentUser?.full_name || "Clínica Espaço Saúde") : (PAGE_TITLES[currentPageName] || "Clínica Espaço Saúde")}
+            </h1>
+            <button onClick={() => setShowDrawer(true)} className="relative w-10 h-10 flex items-center justify-center -mr-1" aria-label="Abrir menu">
+              <Menu className="w-7 h-7" />
+              {pendingBillingCount > 0 && (
+                <span className="absolute top-0.5 right-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-semibold flex items-center justify-center">
+                  {pendingBillingCount}
+                </span>
+              )}
+            </button>
           </header>
 
           <PageTransition>
-            <div className="pb-safe md:pb-0">
+            <div style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
               {children}
             </div>
           </PageTransition>
         </main>
 
-        <BottomNav userType={userType} allItems={navigationItems} currentUser={currentUser}
-          onLogout={async () => { await User.logout(); window.location.href = '/'; }} />
+        <AppDrawer
+          open={showDrawer}
+          onClose={() => setShowDrawer(false)}
+          categories={navigationCategories}
+          badges={navBadges}
+          currentUser={currentUser}
+          userType={userType}
+          dark={dark}
+          onToggleDark={() => setDark(!dark)}
+          onOpenProfile={() => setShowProfileModal(true)}
+          onLogout={handleLogout}
+        />
         <NotificationSystem />
 
         {showProfileModal && (

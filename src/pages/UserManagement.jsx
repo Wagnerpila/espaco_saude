@@ -72,14 +72,14 @@ export default function UserManagementPage() {
 
   if (isLoading) {
     return (
-      <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen flex items-center justify-center">
+      <div className="p-8 bg-app min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-950 dark:to-gray-900 min-h-screen">
+    <div className="p-4 md:p-8 bg-app min-h-screen">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">

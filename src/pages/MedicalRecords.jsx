@@ -154,7 +154,7 @@ export default function MedicalRecordsPage() {
   const filtered = activeTab === "all" ? templates : templates.filter(t => t.category === activeTab);
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+    <div className="p-4 md:p-8 bg-app min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
