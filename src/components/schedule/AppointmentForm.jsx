@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle, Search } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar, Save, X, AlertCircle, Package, CheckCircle, MessageCircle, ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Room, Appointment, ScheduleBlock, ServicePackage, Patient } from "@/entities/all";
 import { createFinancialTransaction } from "@/functions/createFinancialTransaction";
@@ -30,6 +32,7 @@ export default function AppointmentForm({
   const [cycleAlert, setCycleAlert] = useState(null); // { package, patient }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
+  const [patientPickerOpen, setPatientPickerOpen] = useState(false);
 
   const [formData, setFormData] = useState(() => {
     if (appointment) {
@@ -219,6 +222,8 @@ export default function AppointmentForm({
     ? { used: selectedPackage.sessions_used || 0, total: selectedPackage.sessions_per_cycle || selectedPackage.max_sessions || 0 }
     : null;
 
+  const selectedPatient = patients.find(p => p.id === formData.patient_id);
+
   return (
     <>
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
@@ -243,28 +248,51 @@ export default function AppointmentForm({
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Paciente *</Label>
-                  <Select
-                    value={formData.patient_id}
-                    onValueChange={(v) => handleChange('patient_id', v)}
-                    onOpenChange={(open) => { if (!open) setPatientSearch(""); }}
-                    required
+                  {/* Popover+Command em vez de Select: o Select do Radix fecha no
+                      resize da janela, e no Android abrir o teclado da busca
+                      redimensiona a janela — a lista sumia antes de escolher. */}
+                  <Popover
+                    open={patientPickerOpen}
+                    onOpenChange={(open) => { setPatientPickerOpen(open); if (!open) setPatientSearch(""); }}
                   >
-                    <SelectTrigger><SelectValue placeholder="Selecione o paciente" /></SelectTrigger>
-                    <SelectContent>
-                      <div className="relative px-2 py-1.5 sticky top-0 bg-white z-10" onKeyDown={(e) => e.stopPropagation()}>
-                        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <Input
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        role="combobox"
+                        aria-expanded={patientPickerOpen}
+                        className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <span className={`line-clamp-1 ${selectedPatient ? '' : 'text-muted-foreground'}`}>
+                          {selectedPatient ? selectedPatient.full_name : 'Selecione o paciente'}
+                        </span>
+                        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                      <Command shouldFilter={false}>
+                        <CommandInput
                           value={patientSearch}
-                          onChange={(e) => setPatientSearch(e.target.value)}
+                          onValueChange={setPatientSearch}
                           placeholder="Buscar paciente..."
-                          className="pl-8 h-8"
                         />
-                      </div>
-                      {patients
-                        .filter(p => p.full_name?.toLowerCase().includes(patientSearch.toLowerCase()))
-                        .map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                        <CommandList>
+                          <CommandEmpty>Nenhum paciente encontrado.</CommandEmpty>
+                          {patients
+                            .filter(p => p.full_name?.toLowerCase().includes(patientSearch.toLowerCase()))
+                            .map(p => (
+                              <CommandItem
+                                key={p.id}
+                                value={p.id}
+                                onSelect={() => { handleChange('patient_id', p.id); setPatientPickerOpen(false); setPatientSearch(""); }}
+                              >
+                                <Check className={`mr-2 h-4 w-4 ${formData.patient_id === p.id ? 'opacity-100' : 'opacity-0'}`} />
+                                {p.full_name}
+                              </CommandItem>
+                            ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="space-y-2">
